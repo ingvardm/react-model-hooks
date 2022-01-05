@@ -1,12 +1,12 @@
-import React, { Context, createContext, ProviderProps, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import { Context, useCallback, useContext, useEffect, useState } from 'react'
 
 export class Model<S, E> {
 	private subs = new Map<keyof S, Set<(v: S[keyof S]) => void>>()
 
 	private updateSubscribers = (delta: Partial<S>) => {
-		const keyVals = Object.values<[keyof S, S[keyof S]]>(delta as {})
+		const keyVals = Object.entries(delta)
 
-		for (const [key, val] of keyVals){
+		for (const [key, val] of keyVals as [keyof S, S[keyof S]][]){
 			if(this.subs.has(key)){
 				this.subs.get(key)!.forEach((cb) => {
 					cb(val)
@@ -67,16 +67,6 @@ export class Model<S, E> {
 			})
 		}
 	}
-}
-
-export function ModelProvider<M extends Model<M['state'], M['evtDataTypes']>>({
-	value,
-}: ProviderProps<M>) {
-	const context = useMemo<Context<M>>(() => {
-		return createContext(value)
-	}, [])
-
-	return <context.Provider value={value}/>
 }
 
 export function useModelInstanceState<M extends Model<M['state'], M['evtDataTypes']>>(
