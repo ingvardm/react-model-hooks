@@ -14,9 +14,6 @@ type EventListener<T> = (eventData: T) => void
 
 abstract class ViewModel<T, E> {
 	private subs = new Map<keyof T, Set<(v: T[keyof T]) => void>>()
-	public eventListeners = new Map<keyof E, Set<EventListener<E[keyof E]>>>()
-
-	public evtListenersBase: E = {} as E
 
 	private updateSubscribers = (delta: Partial<T>) => {
 		const keyVals = Object.values<[keyof T, any]>(delta as {})
@@ -30,7 +27,11 @@ abstract class ViewModel<T, E> {
 		}
 	}
 
-	public abstract state: T
+	constructor(public state: T = {} as T){}
+
+	public eventListeners = new Map<keyof E, Set<EventListener<E[keyof E]>>>()
+
+	public evtListenersBase: E = {} as E
 
 	public setState(delta: Partial<T>) {
 		this.state = {
@@ -141,10 +142,10 @@ type MyViewModelEvents = {
 }
 
 class MyViewModel extends ViewModel<typeof myViewModelInitialState, MyViewModelEvents>{
-	public state = myViewModelInitialState
+	protected initialState = myViewModelInitialState
 }
 
-const MyViewModelCtx = createContext(new MyViewModel())
+const MyViewModelCtx = createContext(new MyViewModel(myViewModelInitialState))
 
 const ChildFC: FC<any> = () => {
 	const [count, setCount] = useViewModelState(MyViewModelCtx, 'count')
