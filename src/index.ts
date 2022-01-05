@@ -17,7 +17,7 @@ export class Model<S, E> {
 
 	constructor(public state: S = {} as S){}
 
-	public eventListeners = new Map<keyof E, Set<(eventData: E[keyof E]) => void>>()
+	public eventListeners = new Map<keyof E, Set<(eventData?: E[keyof E]) => void>>()
 
 	public evtDataTypes: E = {} as E
 
@@ -45,7 +45,7 @@ export class Model<S, E> {
 		this.updateSubscribers(delta)
 	}
 
-	public onEvent = (evt: keyof typeof this.evtDataTypes, cb: (eventData: E[typeof evt]) => void) => {
+	public onEvent = (evt: keyof typeof this.evtDataTypes, cb: (eventData?: E[typeof evt]) => void) => {
 		let listeners = this.eventListeners.get(evt)
 
 		if (!listeners) {
@@ -60,7 +60,7 @@ export class Model<S, E> {
 		}
 	}
 
-	public emitEvent = (evt: keyof E, data: E[typeof evt]) => {
+	public emitEvent = (evt: keyof E, data?: E[typeof evt]) => {
 		if (this.eventListeners.has(evt)) {
 			this.eventListeners.get(evt)!.forEach((cb) => {
 				cb(data)
@@ -72,7 +72,7 @@ export class Model<S, E> {
 export function useModelInstanceState<M extends Model<M['state'], M['evtDataTypes']>>(
 	viewModel: M,
 	key: keyof M['state']
-) {
+): [M['state'][typeof key], (data: M['state'][typeof key]) => void] {
 	const [value, setValue] = useState(viewModel.state[key])
 
 	useEffect(() => viewModel.onStateChange(key, setValue), [])
@@ -104,7 +104,7 @@ export function useModelInstanceEvent<M extends Model<M['state'], M['evtDataType
 		}
 	}, [cb])
 
-	return (data: M['evtDataTypes'][NS]) => viewModel.emitEvent(ns, data)
+	return (data?: M['evtDataTypes'][NS]) => viewModel.emitEvent(ns, data)
 }
 
 export function useModelCtxEvent<M extends Model<M['state'], M['evtDataTypes']>, NS extends keyof M['evtDataTypes']>(
