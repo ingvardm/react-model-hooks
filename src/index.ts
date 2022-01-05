@@ -1,6 +1,6 @@
 import { Context, useCallback, useContext, useEffect, useState } from 'react'
 
-export class Model<S, E> {
+export class Model<S, E = any> {
 	private subs = new Map<keyof S, Set<(v: S[keyof S]) => void>>()
 
 	private updateSubscribers = (delta: Partial<S>) => {

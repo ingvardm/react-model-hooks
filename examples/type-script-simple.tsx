@@ -8,25 +8,10 @@ import {
 	useModelInstanceState
 } from '../src'
 
-// optional: declare event data types
-// type Events = {
-// 	eventName: EventDataType
-// }
-type CounterEvents = {
-	clear: undefined
-}
-
-const initialState = {
-	count: 0,
-}
-
-class CounterModel extends Model<typeof initialState, CounterEvents>{
-	constructor(public state = initialState) {
-		super(state)
-	}
-}
-
-const CounterModelCtx = createContext(new CounterModel(initialState))
+// create context
+const CounterModelCtx = createContext(new Model({
+	count: 0
+}))
 
 const CounterText = () => {
 	const [count, setCount] = useModelCtxState(CounterModelCtx, 'count')
@@ -56,7 +41,7 @@ const CounterClearButton = () => {
 
 const Counter = () => {
 	const model = useMemo(() => {
-		return new CounterModel({
+		return new Model({
 			count: 0,
 		})
 	}, [])
