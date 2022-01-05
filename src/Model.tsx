@@ -1,4 +1,4 @@
-import React, { Context, createContext, FC, ProviderProps, useCallback, useContext, useEffect, useMemo, useState } from 'react'
+import React, { Context, createContext, ProviderProps, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
 export class Model<S, E> {
 	private subs = new Map<keyof S, Set<(v: S[keyof S]) => void>>()
@@ -19,7 +19,7 @@ export class Model<S, E> {
 
 	public eventListeners = new Map<keyof E, Set<(eventData: E[keyof E]) => void>>()
 
-	public evtListenersBase: E = {} as E
+	public evtDataTypes: E = {} as E
 
 	public onStateChange = (k: keyof S, cb: (v: S[typeof k]) => void) => {
 		let keySubs = this.subs.get(k)
@@ -45,7 +45,7 @@ export class Model<S, E> {
 		this.updateSubscribers(delta)
 	}
 
-	public onEvent = (evt: keyof typeof this.evtListenersBase, cb: (eventData: E[typeof evt]) => void) => {
+	public onEvent = (evt: keyof typeof this.evtDataTypes, cb: (eventData: E[typeof evt]) => void) => {
 		let listeners = this.eventListeners.get(evt)
 
 		if (!listeners) {
@@ -69,7 +69,7 @@ export class Model<S, E> {
 	}
 }
 
-export function ViewModelProvider<M extends Model<M['state'], M['evtListenersBase']>>({
+export function ModelProvider<M extends Model<M['state'], M['evtDataTypes']>>({
 	value,
 }: ProviderProps<M>) {
 	const context = useMemo<Context<M>>(() => {
@@ -79,7 +79,7 @@ export function ViewModelProvider<M extends Model<M['state'], M['evtListenersBas
 	return <context.Provider value={value}/>
 }
 
-export function useModelInstanceState<M extends Model<M['state'], M['evtListenersBase']>>(
+export function useModelInstanceState<M extends Model<M['state'], M['evtDataTypes']>>(
 	viewModel: M,
 	key: keyof M['state']
 ) {
@@ -94,7 +94,7 @@ export function useModelInstanceState<M extends Model<M['state'], M['evtListener
 	return [value, setter]
 }
 
-export function useModelCtxState<M extends Model<M['state'], M['evtListenersBase']>>(
+export function useModelCtxState<M extends Model<M['state'], M['evtDataTypes']>>(
 	ctx: Context<M>,
 	key: keyof M['state']
 ) {
@@ -103,80 +103,27 @@ export function useModelCtxState<M extends Model<M['state'], M['evtListenersBase
 	return useModelInstanceState(viewModel, key)
 }
 
-export function useModelInstanceEvent<M extends Model<M['state'], M['evtListenersBase']>, NS extends keyof M['evtListenersBase']>(
+export function useModelInstanceEvent<M extends Model<M['state'], M['evtDataTypes']>, NS extends keyof M['evtDataTypes']>(
 	viewModel: M,
 	ns: NS,
-	cb?: (eventData: M['evtListenersBase'][NS]) => void,
+	cb?: (eventData: M['evtDataTypes'][NS]) => void,
 ) {
 	useEffect(() => {
 		if (cb) {
-			return viewModel.onEvent(ns, cb as (eventData: M['evtListenersBase']) => void)
+			return viewModel.onEvent(ns, cb as (eventData: M['evtDataTypes']) => void)
 		}
 	}, [])
 
 
-	return (data: M['evtListenersBase'][NS]) => viewModel.emitEvent(ns, data)
+	return (data: M['evtDataTypes'][NS]) => viewModel.emitEvent(ns, data)
 }
 
-export function useModelCtxEvent<M extends Model<M['state'], M['evtListenersBase']>, NS extends keyof M['evtListenersBase']>(
+export function useModelCtxEvent<M extends Model<M['state'], M['evtDataTypes']>, NS extends keyof M['evtDataTypes']>(
 	ctx: Context<M>,
 	ns: NS,
-	cb?: (eventData: M['evtListenersBase'][NS]) => void,
+	cb?: (eventData: M['evtDataTypes'][NS]) => void,
 ) {
 	const viewModel = useContext(ctx)
 
 	return useModelInstanceEvent(viewModel, ns, cb)
-}
-
-
-
-
-
-
-
-const myViewModelInitialState = {
-	count: 0,
-}
-
-type MyViewModelEvents = {
-	click: string
-	increment: number
-}
-
-class MyViewModel extends Model<typeof myViewModelInitialState, MyViewModelEvents>{
-	constructor(public state = myViewModelInitialState){
-		super(state)
-	}
-}
-
-const MyViewModelCtx = createContext(new MyViewModel())
-
-const ChildFC: FC<any> = () => {
-	const [count, setCount] = useModelCtxState(MyViewModelCtx, 'count')
-
-	const onIncrement = useCallback((data: number) => {
-		console.log('INCREMENT!', data)
-	}, [])
-
-	const click = useModelCtxEvent(MyViewModelCtx, 'click')
-	const increment = useModelCtxEvent(MyViewModelCtx, 'increment', onIncrement)
-
-	return <div onClick={() => {
-		increment(1)
-		click('a')
-	}}>
-		<p>{count}</p>
-	</div>
-}
-
-const ParentFC: FC<any> = () => {
-	const viewModel = new MyViewModel()
-
-	const [count, setCount] = useModelInstanceState(viewModel, 'count')
-
-
-	return <ViewModelProvider value={viewModel}>
-		<p>{count}</p>
-		<ChildFC/>
-	</ViewModelProvider>
 }
