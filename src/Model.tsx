@@ -1,6 +1,6 @@
 import React, { Context, createContext, FC, ProviderProps, useCallback, useContext, useEffect, useMemo, useState } from 'react'
 
-abstract class Model<S, E> {
+export class Model<S, E> {
 	private subs = new Map<keyof S, Set<(v: S[keyof S]) => void>>()
 
 	private updateSubscribers = (delta: Partial<S>) => {
@@ -69,7 +69,7 @@ abstract class Model<S, E> {
 	}
 }
 
-function ViewModelProvider<M extends Model<M['state'], M['evtListenersBase']>>({
+export function ViewModelProvider<M extends Model<M['state'], M['evtListenersBase']>>({
 	value,
 }: ProviderProps<M>) {
 	const context = useMemo<Context<M>>(() => {
@@ -79,10 +79,10 @@ function ViewModelProvider<M extends Model<M['state'], M['evtListenersBase']>>({
 	return <context.Provider value={value}/>
 }
 
-function useModelInstanceState<M extends Model<M['state'], M['evtListenersBase']>>(
+export function useModelInstanceState<M extends Model<M['state'], M['evtListenersBase']>>(
 	viewModel: M,
 	key: keyof M['state']
-): [M['state'][typeof key], (v: typeof viewModel.state[typeof key]) => void] {
+) {
 	const [value, setValue] = useState(viewModel.state[key])
 
 	useEffect(() => viewModel.onStateChange(key, setValue), [])
@@ -94,16 +94,16 @@ function useModelInstanceState<M extends Model<M['state'], M['evtListenersBase']
 	return [value, setter]
 }
 
-function useModelCtxState<M extends Model<M['state'], M['evtListenersBase']>>(
+export function useModelCtxState<M extends Model<M['state'], M['evtListenersBase']>>(
 	ctx: Context<M>,
 	key: keyof M['state']
-): [M['state'][typeof key], (v: typeof viewModel.state[typeof key]) => void] {
+) {
 	const viewModel = useContext(ctx)
 
 	return useModelInstanceState(viewModel, key)
 }
 
-function useModelInstanceEvent<M extends Model<M['state'], M['evtListenersBase']>, NS extends keyof M['evtListenersBase']>(
+export function useModelInstanceEvent<M extends Model<M['state'], M['evtListenersBase']>, NS extends keyof M['evtListenersBase']>(
 	viewModel: M,
 	ns: NS,
 	cb?: (eventData: M['evtListenersBase'][NS]) => void,
@@ -118,7 +118,7 @@ function useModelInstanceEvent<M extends Model<M['state'], M['evtListenersBase']
 	return (data: M['evtListenersBase'][NS]) => viewModel.emitEvent(ns, data)
 }
 
-function useModelCtxEvent<M extends Model<M['state'], M['evtListenersBase']>, NS extends keyof M['evtListenersBase']>(
+export function useModelCtxEvent<M extends Model<M['state'], M['evtListenersBase']>, NS extends keyof M['evtListenersBase']>(
 	ctx: Context<M>,
 	ns: NS,
 	cb?: (eventData: M['evtListenersBase'][NS]) => void,
