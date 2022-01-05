@@ -75,7 +75,9 @@ export function useModelInstanceState<M extends Model<M['state'], M['evtDataType
 ) {
 	const [value, setValue] = useState(viewModel.state[key])
 
-	useEffect(() => viewModel.onStateChange(key, setValue), [])
+	useEffect(() => {
+		return viewModel.onStateChange(key, setValue)
+	}, [viewModel])
 
 	const setter = useCallback((v) => {
 		viewModel.setState({ [key]: v } as Partial<M['state']>)
@@ -102,7 +104,7 @@ export function useModelInstanceEvent<M extends Model<M['state'], M['evtDataType
 		if (cb) {
 			return viewModel.onEvent(ns, cb as (eventData: M['evtDataTypes']) => void)
 		}
-	}, [])
+	}, [cb])
 
 
 	return (data: M['evtDataTypes'][NS]) => viewModel.emitEvent(ns, data)

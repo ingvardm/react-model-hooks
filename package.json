@@ -1,6 +1,6 @@
 {
   "name": "react-shared-callbacks",
-  "version": "1.0.7",
+  "version": "1.0.11",
   "description": "",
   "main": "lib/index.js",
   "scripts": {
