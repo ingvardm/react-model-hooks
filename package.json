@@ -1,13 +1,22 @@
 {
-  "name": "react-shared-callbacks",
-  "version": "1.0.11",
+  "name": "react-model-hooks",
+  "version": "0.1.0",
   "description": "",
   "main": "lib/index.js",
-  "scripts": {
-    "build": "npx tsc"
+  "types": "lib/index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:ingvardm/pubsub.git"
   },
-  "author": "",
-  "license": "ISC",
+  "files": [
+    "lib"
+  ],
+  "scripts": {
+    "build": "npx tsc",
+    "prepare": "yarn build"
+  },
+  "author": "igor poughtach <ingvardm@gmail.com>",
+  "license": "GPL-3.0",
   "peerDependencies": {
     "react": "^17.0.2"
   },
@@ -15,5 +24,6 @@
     "@types/react": "^17.0.34",
     "typescript": "^4.4.4"
   },
-  "dependencies": {}
+  "dependencies": {},
+  "private": false
 }
