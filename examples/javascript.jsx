@@ -6,7 +6,7 @@ import {
 	useModelCtxState,
 	useModelInstanceEvent,
 	useModelInstanceState
-} from '../src'
+} from 'react-better-model'
 
 
 // CounterModel.js
@@ -16,7 +16,6 @@ export const initialState = {
 
 export const defaultEventData = {
 	click: undefined,
-	test: false,
 }
 
 // create context
