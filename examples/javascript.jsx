@@ -8,27 +8,40 @@ import {
 	useModelInstanceState
 } from '../src'
 
-// create context
-const CounterModelCtx = createContext(new Model({
-	count: 0
-}))
 
+// CounterModel.js
+export const initialState = {
+	count: 0,
+}
+
+export const defaultEventData = {
+	click: undefined,
+	test: false,
+}
+
+// create context
+export const CounterModelCtx = createContext(new Model(initialState, defaultEventData))
+
+
+// CounterText.js
 const CounterText = () => {
 	const [count, setCount] = useModelCtxState(CounterModelCtx, 'count')
 
 	return <p>{count}</p>
 }
 
+// CounterIncrementButton.js
 const CounterIncrementButton = () => {
 	const [count, setCount] = useModelCtxState(CounterModelCtx, 'count')
 
-	const  onClick = useCallback(() => {
+	const onClick = useCallback(() => {
 		setCount(count + 1)
 	}, [count])
 
 	return <button onClick={onClick}>Press me!</button>
 }
 
+// CounterClearButton.js
 const CounterClearButton = () => {
 	const dispatchClear = useModelCtxEvent(CounterModelCtx, 'clear')
 
@@ -39,11 +52,10 @@ const CounterClearButton = () => {
 	return <button onClick={onClick}>Clear</button>
 }
 
+// Counter.js
 const Counter = () => {
 	const model = useMemo(() => {
-		return new Model({
-			count: 0,
-		})
+		return new Model(initialState, defaultEventData)
 	}, [])
 
 	const [count, setCount] = useModelInstanceState(model, 'count')
@@ -56,18 +68,18 @@ const Counter = () => {
 
 	return <div>
 		<CounterModelCtx.Provider value={model}>
-			<CounterText/>
-			<CounterIncrementButton/>
-			<CounterClearButton/>
+			<CounterText />
+			<CounterIncrementButton />
+			<CounterClearButton />
 		</CounterModelCtx.Provider>
 	</div>
 }
 
 const App = () => {
 	return <div>
-		<Counter/>
-		<Counter/>
-		<Counter/>
+		<Counter />
+		<Counter />
+		<Counter />
 	</div>
 }
 

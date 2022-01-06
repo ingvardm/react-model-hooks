@@ -1,7 +1,15 @@
 import { Context, useCallback, useContext, useEffect, useState } from 'react'
 
-export class Model<S, E = any> {
-	private subs = new Map<keyof S, Set<(v: S[keyof S]) => void>>()
+type Sub<S, K extends keyof S = keyof S> = (v: S[K]) => void
+type Subs<S> = Map<keyof S, Set<Sub<S>>>
+
+export class Model<S, E = {}> {
+	private subs: Subs<S> = new Map()
+	private listeners: Subs<E> = new Map()
+
+	private updateSingleSubscriber = <K extends keyof S>(k: K, v: S[K]) => {
+		this.subs.get(k)?.forEach((cb) => cb(v))
+	}
 
 	private updateSubscribers = (delta: Partial<S>) => {
 		const keyVals = Object.entries(delta)
@@ -15,13 +23,20 @@ export class Model<S, E = any> {
 		}
 	}
 
-	constructor(public state: S = {} as S){}
+	private updateEventListeners = <K extends keyof E>(k: K, data?: E[K] extends undefined ? never : E[K]) => {
+		this.listeners.get(k)?.forEach((cb) => cb(data!))
+	}
 
-	public eventListeners = new Map<keyof E, Set<(eventData?: E[keyof E]) => void>>()
+	private initialState = {} as S
 
-	public evtDataTypes: E = {} as E
+	constructor(
+		public state: S = {} as S,
+		public events: E = {} as E
+	){
+		this.initialState = state
+	}
 
-	public onStateChange = (k: keyof S, cb: (v: S[typeof k]) => void) => {
+	onStateChange = <K extends keyof S>(k: K, cb: Sub<S>) => {
 		let keySubs = this.subs.get(k)
 
 		if (!keySubs) {
@@ -36,7 +51,7 @@ export class Model<S, E = any> {
 		}
 	}
 
-	public setState(delta: Partial<S>) {
+	setState = (delta: Partial<S>) => {
 		this.state = {
 			...this.state,
 			...delta,
@@ -45,72 +60,78 @@ export class Model<S, E = any> {
 		this.updateSubscribers(delta)
 	}
 
-	public onEvent = (evt: keyof typeof this.evtDataTypes, cb: (eventData?: E[typeof evt]) => void) => {
-		let listeners = this.eventListeners.get(evt)
+	setValue = <K extends keyof S>(key: K, value: S[K]) => {
+		this.state[key] = value
 
-		if (!listeners) {
-			listeners = new Set()
-			this.eventListeners.set(evt, listeners)
+		this.updateSingleSubscriber(key, value!)
+	}
+
+	onEvent = <K extends keyof E>(k: K, cb: Sub<E>) => {
+		let nsListeners = this.listeners.get(k)
+
+		if (!nsListeners) {
+			nsListeners = new Set()
+			this.listeners.set(k, nsListeners)
 		}
 
-		listeners.add(cb)
+		nsListeners.add(cb)
 
 		return () => {
-			listeners!.delete(cb)
+			nsListeners!.delete(cb)
 		}
 	}
 
-	public emitEvent = (evt: keyof E, data?: E[typeof evt]) => {
-		if (this.eventListeners.has(evt)) {
-			this.eventListeners.get(evt)!.forEach((cb) => {
-				cb(data)
-			})
-		}
+	dispatch = <K extends keyof E>(key: K, data?: E[K] extends undefined ? never : E[K]) => {
+		this.updateEventListeners(key, data)
+	}
+
+	reset = () => {
+		this.setState(this.initialState)
 	}
 }
 
-export function useModelInstanceState<M extends Model<M['state'], M['evtDataTypes']>>(
+export function useModelInstanceState<K extends keyof M['state'], M extends Model<M['state'], M['events']>>(
 	viewModel: M,
-	key: keyof M['state']
-): [M['state'][typeof key], (data: M['state'][typeof key]) => void] {
+	key: K
+): [M['state'][K], (data: M['state'][K]) => void] {
 	const [value, setValue] = useState(viewModel.state[key])
 
-	useEffect(() => viewModel.onStateChange(key, setValue), [])
+	useEffect(() => viewModel.onStateChange(key, setValue as Sub<M['state']>), [])
 
 	const setter = useCallback((v) => {
-		viewModel.setState({ [key]: v } as Partial<M['state']>)
+		viewModel.setValue(key, v)
 	}, [key])
 
 	return [value, setter]
 }
 
-export function useModelCtxState<M extends Model<M['state'], M['evtDataTypes']>>(
+export function useModelCtxState<K extends keyof M['state'], M extends Model<M['state'], M['events']>>(
 	ctx: Context<M>,
-	key: keyof M['state']
-) {
+	key: K
+){
 	const viewModel = useContext(ctx)
 
 	return useModelInstanceState(viewModel, key)
 }
 
-export function useModelInstanceEvent<M extends Model<M['state'], M['evtDataTypes']>, NS extends keyof M['evtDataTypes']>(
+export function useModelInstanceEvent<K extends keyof M['events'], D extends M['events'], M extends Model<M['state'], M['events']>>(
 	viewModel: M,
-	ns: NS,
-	cb?: (eventData: M['evtDataTypes'][NS]) => void,
+	ns: K,
+	cb?: Sub<D, K>,
 ) {
 	useEffect(() => {
 		if (cb) {
-			return viewModel.onEvent(ns, cb as (eventData: M['evtDataTypes']) => void)
+			return viewModel.onEvent(ns, cb as Sub<M['events']>)
 		}
 	}, [cb])
 
-	return (data?: M['evtDataTypes'][NS]) => viewModel.emitEvent(ns, data)
+	return (data?: D[K] extends undefined ? never : D[K]) => viewModel.dispatch(ns, data!)
 }
 
-export function useModelCtxEvent<M extends Model<M['state'], M['evtDataTypes']>, NS extends keyof M['evtDataTypes']>(
+export function useModelCtxEvent<K extends keyof M['events'], D extends M['events'], M extends Model<M['state'], M['events']>>(
 	ctx: Context<M>,
-	ns: NS,
-	cb?: (eventData: M['evtDataTypes'][NS]) => void,
+	ns: K,
+	cb?: (eventData: D[K]) => void,
 ) {
 	const viewModel = useContext(ctx)
 
