@@ -90,6 +90,12 @@ export class Model<S, E = {}> {
 	}
 }
 
+export function useModelCtx<M extends Model<M['state'], M['events']>>(
+	ctx: Context<M>,
+){
+	return useContext(ctx)
+}
+
 export function useModelInstanceState<K extends keyof M['state'], M extends Model<M['state'], M['events']>>(
 	viewModel: M,
 	key: K
