@@ -1,7 +1,7 @@
 import { Context, useContext, useEffect } from 'react'
 
-import { Model } from './Model'
-import { Sub } from './types'
+import { Model } from '../Model'
+import { Sub } from '../types'
 
 export function useModelInstanceEvent<K extends keyof M['events'], D extends M['events'], M extends Model<M['state'], M['events']>>(
 	viewModel: M,

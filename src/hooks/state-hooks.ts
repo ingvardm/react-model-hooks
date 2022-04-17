@@ -6,14 +6,8 @@ import {
 	useState,
 } from 'react'
 
-import { Model } from './Model'
-import { Sub } from './types'
-
-export function useModelCtx<M extends Model<M['state'], M['events']>>(
-	ctx: Context<M>,
-) {
-	return useContext(ctx)
-}
+import { Model } from '../Model'
+import { Sub } from '../types'
 
 export function useModelInstanceState<K extends keyof M['state'], M extends Model<M['state'], M['events']>>(
 	viewModel: M,

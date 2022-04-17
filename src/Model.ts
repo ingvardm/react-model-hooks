@@ -1,6 +1,6 @@
 import { Sub, Subs } from './types'
 
-export class Model<S, E = {}> {
+export class Model<S = {}, E = {}> {
 	private subs: Subs<S> = new Map()
 	private listeners: Subs<E> = new Map()
 
@@ -13,9 +13,7 @@ export class Model<S, E = {}> {
 
 		for (const [key, val] of keyVals as [keyof S, S[keyof S]][]) {
 			if (this.subs.has(key)) {
-				this.subs.get(key)!.forEach((cb) => {
-					cb(val)
-				})
+				this.subs.get(key)!.forEach((cb) => cb(val))
 			}
 		}
 	}
@@ -26,9 +24,10 @@ export class Model<S, E = {}> {
 
 	private initialState = {} as S
 
+	declare events: E
+
 	constructor(
 		public state: S = {} as S,
-		public events: E = {} as E
 	) {
 		this.initialState = state
 	}
