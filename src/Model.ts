@@ -1,6 +1,7 @@
 import { Sub, Subs } from './types'
 
 export class Model<S = {}, E = {}> {
+	private initialState
 	private subs: Subs<S> = new Map()
 	private listeners: Subs<E> = new Map()
 
@@ -22,12 +23,9 @@ export class Model<S = {}, E = {}> {
 		this.listeners.get(k)?.forEach((cb) => cb(data!))
 	}
 
-	private initialState = {} as S
-
-	declare events: E
-
 	constructor(
-		public state: S = {} as S,
+		public state: S,
+		public events: E = {} as E,
 	) {
 		this.initialState = state
 	}

@@ -6,7 +6,7 @@ import {
 	useModelCtxState,
 	useModelInstanceEvent,
 	useModelInstanceState
-} from 'react-better-model'
+} from '../src'
 
 
 // CounterModel.js
@@ -14,12 +14,12 @@ export const initialState = {
 	count: 0,
 }
 
-export const defaultEventData = {
+export const EventData = {
 	click: undefined,
 }
 
 // create context
-export const CounterModelCtx = createContext(new Model(initialState, defaultEventData))
+export const CounterModelCtx = createContext(new Model(initialState, EventData))
 
 
 // CounterText.js
@@ -42,7 +42,7 @@ const CounterIncrementButton = () => {
 
 // CounterClearButton.js
 const CounterClearButton = () => {
-	const dispatchClear = useModelCtxEvent(CounterModelCtx, 'clear')
+	const dispatchClear = useModelCtxEvent(CounterModelCtx, 'click')
 
 	const onClick = useCallback(() => {
 		dispatchClear()
@@ -54,7 +54,7 @@ const CounterClearButton = () => {
 // Counter.js
 const Counter = () => {
 	const model = useMemo(() => {
-		return new Model(initialState, defaultEventData)
+		return new Model(initialState, EventData)
 	}, [])
 
 	const [count, setCount] = useModelInstanceState(model, 'count')
