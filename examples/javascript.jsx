@@ -1,6 +1,7 @@
 import React, { createContext, useCallback, useMemo } from 'react'
 
 import {
+	EventTypes,
 	Model,
 	useModelCtxEvent,
 	useModelCtxState,
@@ -15,7 +16,7 @@ export const initialState = {
 }
 
 export const EventData = {
-	click: undefined,
+	click: EventTypes.string,
 }
 
 // create context
@@ -63,7 +64,7 @@ const Counter = () => {
 		setCount(0)
 	}, [])
 
-	useModelInstanceEvent(model, 'clear', onClear)
+	useModelInstanceEvent(model, 'click', onClear)
 
 	return <div>
 		<CounterModelCtx.Provider value={model}>

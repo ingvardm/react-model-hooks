@@ -5,6 +5,7 @@ export class Model<S = {}, E = {}> {
 	private subs: Subs<S> = new Map()
 	private listeners: Subs<E> = new Map()
 
+	//#region updaters
 	private updateSingleSubscriber = <K extends keyof S>(k: K, v: S[K]) => {
 		this.subs.get(k)?.forEach((cb) => cb(v))
 	}
@@ -22,6 +23,7 @@ export class Model<S = {}, E = {}> {
 	private updateEventListeners = <K extends keyof E>(k: K, data?: E[K] extends undefined ? never : E[K]) => {
 		this.listeners.get(k)?.forEach((cb) => cb(data!))
 	}
+	//#endregion updaters
 
 	constructor(
 		public state: S,
@@ -30,6 +32,7 @@ export class Model<S = {}, E = {}> {
 		this.initialState = state
 	}
 
+	//#region state
 	onStateChange = <K extends keyof S>(k: K, cb: Sub<S>) => {
 		let keySubs = this.subs.get(k)
 
@@ -60,6 +63,12 @@ export class Model<S = {}, E = {}> {
 		this.updateSingleSubscriber(key, value!)
 	}
 
+	reset = () => {
+		this.setState(this.initialState)
+	}
+	//#endregion state
+
+	//#region events
 	onEvent = <K extends keyof E>(k: K, cb: Sub<E>) => {
 		let nsListeners = this.listeners.get(k)
 
@@ -79,7 +88,13 @@ export class Model<S = {}, E = {}> {
 		this.updateEventListeners(key, data)
 	}
 
-	reset = () => {
-		this.setState(this.initialState)
+	awaitEvent = <K extends keyof E>(key: K) => {
+		return new Promise<E[K]>((resolve) => {
+			const remove = this.onEvent(key, (data) => {
+				remove()
+				resolve(data as E[K])
+			})
+		})
 	}
+	//#endregion events
 }
