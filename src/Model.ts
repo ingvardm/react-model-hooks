@@ -1,26 +1,28 @@
+import { useModelInstanceEvent } from './hooks/event-hooks'
+import { useModelInstanceState } from './hooks/state-hooks'
 import { Sub, Subs } from './types'
 
 export class Model<S = {}, E = {}> {
-	private initialState
-	private subs: Subs<S> = new Map()
-	private listeners: Subs<E> = new Map()
+	protected initialState
+	protected subs: Subs<S> = new Map()
+	protected listeners: Subs<E> = new Map()
 
 	//#region updaters
-	private updateSingleSubscriber = <K extends keyof S>(k: K, v: S[K]) => {
+	protected updateSingleSubscriber = <K extends keyof S>(k: K, v: S[K]) => {
 		this.subs.get(k)?.forEach((cb) => cb(v))
 	}
 
-	private updateSubscribers = (delta: Partial<S>) => {
+	protected updateSubscribers = (delta: Partial<S>) => {
 		const keyVals = Object.entries(delta)
 
 		for (const [key, val] of keyVals as [keyof S, S[keyof S]][]) {
 			if (this.subs.has(key)) {
-				this.subs.get(key)!.forEach((cb) => cb(val))
+				this.updateSingleSubscriber(key, val)
 			}
 		}
 	}
 
-	private updateEventListeners = <K extends keyof E>(k: K, data?: E[K] extends undefined ? never : E[K]) => {
+	protected updateEventListeners = <K extends keyof E>(k: K, data?: E[K] extends undefined ? never : E[K]) => {
 		this.listeners.get(k)?.forEach((cb) => cb(data!))
 	}
 	//#endregion updaters
@@ -29,7 +31,7 @@ export class Model<S = {}, E = {}> {
 		public state: S,
 		public events: E = {} as E,
 	) {
-		this.initialState = state
+		this.initialState = {...state}
 	}
 
 	//#region state
@@ -61,6 +63,12 @@ export class Model<S = {}, E = {}> {
 		this.state[key] = value
 
 		this.updateSingleSubscriber(key, value!)
+	}
+
+	reduce = (reducer: (state: S) => Partial<S>) => {
+		const nextState = reducer(this.state)
+
+		this.setState(nextState)
 	}
 
 	reset = () => {
@@ -97,4 +105,14 @@ export class Model<S = {}, E = {}> {
 		})
 	}
 	//#endregion events
+
+	//#region instance hooks
+	useState = <K extends keyof S>(key: K) => {
+		return useModelInstanceState(this, key)
+	}
+
+	useEvent = <K extends keyof E>(ns: K, cb?: Sub<E, K>) => {
+		return useModelInstanceEvent(this, ns, cb)
+	}
+	//#endregion instance hoooks
 }
