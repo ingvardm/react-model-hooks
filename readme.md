@@ -115,10 +115,10 @@ export const HelloWorldWidget = HWM.withProvider(({
 
 Documentation
 ===
-[model creation](model_creation.md)
-[global models](global_model.md)
-[state](state.md)
-[events](events.md)
+[model creation](model_creation.md)<br>
+[global models](global_model.md)<br>
+[state](state.md)<br>
+[events](events.md)<br>
 
 Documentation
 ===
