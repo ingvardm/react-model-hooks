@@ -115,11 +115,11 @@ export const HelloWorldWidget = HWM.withProvider(({
 
 Documentation
 ===
-[model creation](model_creation.md)<br>
-[global models](global_model.md)<br>
-[state](state.md)<br>
-[events](events.md)<br>
+[Model creation](model_creation.md)<br>
+[Global models](global_model.md)<br>
+[State](state.md)<br>
+[Events](events.md)<br>
 
-Documentation
+Example
 ===
-[example project](https://)
+[Example project](https://github.com/ingvardm/react-model-hooks-example)

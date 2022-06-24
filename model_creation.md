@@ -15,8 +15,12 @@ type MyEventTypes = {
 ```ts
 export const MyModel = createModel(Model<MyModelModelState, myModelModelEvents>)
 
-// with craeting custom class (which can be extended)
-class MyModelClass extends Model<MyModelModelState, myModelModelEvents>{}
+// with creating custom class (which can be extended)
+class MyModelClass extends Model<MyModelModelState, myModelModelEvents>{
+	constructor(){
+		super(initialState)
+	}
+}
 
 export const MyModel = createModel(MyModelClass)
 
