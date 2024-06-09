@@ -23,7 +23,7 @@
     "prepare": "yarn build"
   },
   "author": "igor poughtach <ingvardm@gmail.com>",
-  "license": "GPL-3.0",
+  "license": "MIT",
   "peerDependencies": {
     "react": "*"
   },
