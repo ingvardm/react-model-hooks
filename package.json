@@ -1,6 +1,6 @@
 {
   "name": "react-better-model",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -22,7 +22,7 @@
     "build": "npx tsc",
     "prepare": "yarn build"
   },
-  "author": "igor poughtach <ingvardm@gmail.com>",
+  "author": "Igor Poughtach <ingvardm@gmail.com>",
   "license": "MIT",
   "peerDependencies": {
     "react": "*"
