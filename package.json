@@ -1,7 +1,7 @@
 {
   "name": "react-better-model",
-  "version": "0.2.2",
-  "description": "",
+  "version": "1.0.0",
+  "description": "Model to manage state outside component and share it with children via context",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
   "keywords": [
@@ -23,7 +23,7 @@
     "prepare": "yarn build"
   },
   "author": "Igor Poughtach <ingvardm@gmail.com>",
-  "license": "MIT",
+  "license": "Unlicense",
   "peerDependencies": {
     "react": "*"
   },
