@@ -1,10 +1,6 @@
-export type KeySub<S, K extends keyof S = keyof S> = (v: S[K]) => void
-export type KeySubs<S> = Map<keyof S, Set<KeySub<S, keyof S>>>
-export type StateSub<S> = (s: S) => unknown
-export type StateSubs<S> = Set<StateSub<S>>
+import { KeySub, KeySubs, StateSub, StateSubs } from "./types"
 
-export class ModelBase<S = {}, E = {}> {
-	protected initialState
+export abstract class ModelBase<E = {}, S = {}> {
 	protected keySubs: KeySubs<S> = new Map()
 	protected stateSubs: StateSubs<S> = new Set()
 	protected listeners: KeySubs<E> = new Map()
@@ -33,9 +29,9 @@ export class ModelBase<S = {}, E = {}> {
 	}
 	//#endregion updaters
 
-	constructor(public state: S) {
-		this.initialState = { ...state }
-	}
+	abstract state: S
+
+	// constructor(public state: S) { }
 
 	//#region state
 	onStateChange = (cb: StateSub<S>) => {
@@ -61,7 +57,7 @@ export class ModelBase<S = {}, E = {}> {
 		}
 	}
 
-	setState = (delta: Partial<S>) => {
+	setState = (delta: Partial<typeof this['state']>) => {
 		this.state = {
 			...this.state,
 			...delta,
@@ -71,21 +67,10 @@ export class ModelBase<S = {}, E = {}> {
 		this.updateKeySubscribers(delta)
 	}
 
-	setValue = <K extends keyof S>(key: K, value: S[K]) => {
-		this.state[key] = value
-
-		this.updateStateChangeSubscribers(this.state)
-		this.updateSingleKeySubscriber(key, value!)
-	}
-
-	reduce = (reducer: (state: S) => Partial<S>) => {
+	reduce = (reducer: (state: typeof this['state']) => Partial<typeof this['state']>) => {
 		const nextState = reducer(this.state)
 
 		this.setState(nextState)
-	}
-
-	reset = () => {
-		this.setState(this.initialState)
 	}
 	//#endregion state
 

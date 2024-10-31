@@ -1,23 +1,16 @@
 import React, {
-	ProviderProps,
 	createContext,
 	useContext,
 	useMemo,
 } from 'react'
 
 import { Model } from './ModelWithHooks'
+import { Ctor, ModelProviderProps } from './types'
 
-type ModelProviderProps<S, E, M extends Model<S, E>> = Omit<ProviderProps<M>, 'value'> & {
-	value?: M
-	initialState?: S
-}
-
-type Ctor<S extends {}, E extends {}, M extends Model<S, E>> = new (initialState?: S) => M
-
-export function createModel<S extends {} = {}, E extends {} = {}, M extends Model<S, E> = Model<S, E>>(CName: Ctor<S, E, M>) {
+export function createModel<E extends {} = {}, S extends {} = {}, M extends Model<E, S> = Model<E, S>>(CName: Ctor<E, S, M>) {
 	const Ctx = createContext<M>({} as M)
 
-	function Provider({ value, initialState, ...props }: ModelProviderProps<S, E, M>) {
+	function Provider({ value, initialState, ...props }: ModelProviderProps<E, S, M>) {
 		if (!value && !initialState) throw new Error('createModel: either <value> or <initialState> must be supplyed')
 
 		const viewModel = useMemo(() => value || new CName(initialState), [])
@@ -29,6 +22,12 @@ export function createModel<S extends {} = {}, E extends {} = {}, M extends Mode
 		Ctx,
 		Provider,
 		useModel() {
+			const model = useContext(Ctx)
+
+			if (!model) {
+				throw new Error(`[useModel]: Could not find model\n${JSON.stringify(Ctx, null, 2)}`)
+			}
+
 			return useContext(Ctx)
 		},
 	}
