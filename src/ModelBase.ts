@@ -1,40 +1,36 @@
-import { KeySub, KeySubs, StateSub, StateSubs } from "./types"
+export type KeySub<S, K extends keyof S = keyof S> = (v: S[K]) => void
+export type KeySubs<S> = Map<keyof S, Set<KeySub<S, keyof S>>>
+export type StateSub<S> = (s: S) => unknown
+export type StateSubs<S> = Set<StateSub<S>>
 
-export abstract class ModelBase<E = {}, S = {}> {
-	protected keySubs: KeySubs<S> = new Map()
-	protected stateSubs: StateSubs<S> = new Set()
+export abstract class ModelBase<E = {}> {
+	protected keySubs: KeySubs<typeof this['state']> = new Map()
+	protected stateSubs: StateSubs<typeof this['state']> = new Set()
 	protected listeners: KeySubs<E> = new Map()
 
-	//#region updaters
-	protected updateSingleKeySubscriber = <K extends keyof S>(k: K, v: S[K]) => {
+	protected updateSingleKeySubscriber = <K extends keyof typeof this['state']>(k: K, v: typeof this['state'][K]) => {
 		this.keySubs.get(k)?.forEach((cb) => cb(v))
 	}
 
-	protected updateKeySubscribers = (delta: Partial<S>) => {
-		const keyVals = Object.entries(delta)
+	protected updateKeySubscribers = (delta: Partial<typeof this['state']>) => {
+		const keyVals = Object.entries(delta) as [keyof typeof this['state'], typeof this['state'][keyof typeof this['state']]][]
 
-		for (const [key, val] of keyVals as [keyof S, S[keyof S]][]) {
+		for (const [key, val] of keyVals) {
 			if (this.keySubs.has(key)) {
 				this.updateSingleKeySubscriber(key, val)
 			}
 		}
 	}
 
-	protected updateStateChangeSubscribers = (state: S) => {
+	protected updateStateChangeSubscribers = (state: typeof this['state']) => {
 		this.stateSubs.forEach(cb => cb(state))
 	}
 
 	protected updateEventListeners = <K extends keyof E>(k: K, data?: E[K] extends undefined ? never : E[K]) => {
 		this.listeners.get(k)?.forEach((cb) => cb(data!))
 	}
-	//#endregion updaters
 
-	abstract state: S
-
-	// constructor(public state: S) { }
-
-	//#region state
-	onStateChange = (cb: StateSub<S>) => {
+	onStateChange = (cb: StateSub<typeof this['state']>) => {
 		this.stateSubs.add(cb)
 
 		return () => {
@@ -42,7 +38,7 @@ export abstract class ModelBase<E = {}, S = {}> {
 		}
 	}
 
-	onValueChange = <K extends keyof S>(k: K, cb: KeySub<S>) => {
+	onValueChange = <K extends keyof typeof this['state']>(k: K, cb: KeySub<typeof this['state']>) => {
 		let keySubs = this.keySubs.get(k)
 
 		if (!keySubs) {
@@ -58,10 +54,7 @@ export abstract class ModelBase<E = {}, S = {}> {
 	}
 
 	setState = (delta: Partial<typeof this['state']>) => {
-		this.state = {
-			...this.state,
-			...delta,
-		}
+		this.state = { ...this.state as {}, ...delta }
 
 		this.updateStateChangeSubscribers(this.state)
 		this.updateKeySubscribers(delta)
@@ -72,9 +65,7 @@ export abstract class ModelBase<E = {}, S = {}> {
 
 		this.setState(nextState)
 	}
-	//#endregion state
 
-	//#region events
 	onEvent = <K extends keyof E>(k: K, cb: KeySub<E, K>) => {
 		let nsListeners = this.listeners.get(k)
 
@@ -93,5 +84,6 @@ export abstract class ModelBase<E = {}, S = {}> {
 	dispatch = <K extends keyof E>(key: K, data?: E[K] extends undefined ? never : E[K]) => {
 		this.updateEventListeners(key, data)
 	}
-	//#endregion events
+
+	abstract state: unknown
 }

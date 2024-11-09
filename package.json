@@ -1,6 +1,6 @@
 {
   "name": "react-better-model",
-  "version": "2.0.0",
+  "version": "1.0.0",
   "description": "Model to manage state outside component and share it with children via context",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
