@@ -28,22 +28,16 @@ export const MyModel = createModel(MyModelClass)
 export const {
 	Ctx: MyModelCtx,
 	Provider: MyModelProvider,
-	withProvider: withMyModelProvider,
-	withModel: withMyModel,
 	useModel: useMyModel,
-	useState: useMyModelState,
-	useEvent: useMyModelEvent,
 } = createModel(MyModelClass)
 ```
 
 ### Extending Model:
 ```ts
-class MyModelClass extends Model<HelloWorldModelState, HelloWorldModelEvents> {
+class MyModelClass extends Model<HelloWorldModelEvents> {
 	private somePrivateValue
 
-	constructor(state = helloWorldModelInitialState){
-		super(state)
-	}
+	state = helloWorldModelInitialState
 
 	myFancyAction = async (y: number) => {
 		const z = await API.get(y)

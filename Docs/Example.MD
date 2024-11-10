@@ -11,58 +11,78 @@ interface Events {
 	reset: void
 }
 
-const initialState = { count: 0 }
+export const myModelInitialState = { count: 0 }
 
-class MyModel extends Model<Events> {
-	state = initialState
+export default class MyModel extends Model<Events> {
+	state = myModelInitialState
 
 	increment = () => {
 		this.setState({ count: this.state.count + 1 })
 	}
-
-    reset = () => {
-        this.setState(initialState)
-    }
 }
 
 export const {
-    Provider: MyModelProvider,
-    useModel: useMyModel,
+	Provider: MyModelProvider,
+	useModel: useMyModel,
 } = createModel(MyModel)
 
 // App.tsx
 import React from 'react'
-import { MyModelProvider, useModel } from './MyModelProvider'
+import { MyModelProvider, useMyModel, myModelInitialState } from './MyModelProvider'
 
 function Counter() {
 	const myModel = useMyModel()
+
+	const [count] = myModel.useState('count')
+
+	return <p>Count: {count}</p>
+}
+
+function IncrementButton() {
+	const myModel = useMyModel()
+
+	return <button
+		onClick={myModel.increment}>
+		Increment
+	</button>
+}
+
+function DecrementButton() {
+	const myModel = useMyModel()
+
 	const [count, setCount] = myModel.useState('count')
+
+	return <button
+		onClick={() => setCount(count - 1)}>
+		Decrement
+	</button>
+}
+
+function ResetButton() {
+	const myModel = useMyModel()
+
 	const reset = myModel.useEvent('reset')
 
-	return (
-		<div>
-			<p>Count: {count}</p>
-			<button onClick={myModel.increment}>Increment</button>
-			<button onClick={() => setCount(count + 1)}>Increment by five</button>
-			<button onClick={reset}>Reset</button>
-		</div>
-	)
+	return <button onClick={reset}>
+		Reset
+	</button>
 }
 
 function App() {
-    const myModel = useMemo(() => {
-        return new MyModel()
-    })
+	const myModel = useMemo(() => {
+		return new MyModel()
+	})
 
-    myModel.useEvent('reset', () => {
-        myModel.reset()
-    })
+	myModel.useEvent('reset', () => {
+		myModel.setState(myModelInitialState)
+	})
 
 	return <MyModelProvider value={myModel}>
-        <Counter />
-    </MyModelProvider>
+		<Counter />
+		<IncrementButton />
+		<DecrementButton />
+		<ResetButton />
+	</MyModelProvider>
 }
-
-export default App
 ```
 

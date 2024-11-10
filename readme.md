@@ -16,101 +16,48 @@ Usage
 ===
 Minimal working example
 ```ts
-import { useCallback } from "react"
+// MyModel.ts
 import { createModel, Model } from "react-better-model"
 
-// initial state
-const helloWorldModelInitialState = {
-	count: 0,
-}
-
-// model state type (usefull later)
-type HelloWorldModelState = typeof helloWorldModelInitialState
-
-// model event types (optional, if you want to use events)
-type HelloWorldModelEvents = {
-	click: number
-}
-
-// create your model class
-class HelloWorldModelClass extends Model<HelloWorldModelState, HelloWorldModelEvents> {
-	constructor(state = helloWorldModelInitialState){
-		super(state)
+export default class MyModel extends Model {
+	state = {
+		count: 0,
 	}
 }
 
-// create object that will contain hooks and refferences
-// that you can use in your code
-const HWM = createModel(HelloWorldModelClass)
+export const {
+	useModel: useMyModel,
+	Provider: MyModelProvider,
+} = createModel(MyModel)
 
-// component with button that listens to and sets 'count' value
-const ButtonAdd = HWM.withModel(({ model, ...props }) => {
-	const [count, setCount] = model.useState('count')
+//MyFancyWidget.tsx
+import React from "react"
+import { useMyModel, MyModelProvider } from "./MyModel"
 
-	const onClick = useCallback(() => {
-		setCount(count + 1)
-	}, [count])
+function Counter() {
+	const myModel = useMyModel()
 
-	// this is just an example of listening and setting value.
-	// a better way (without listening) would be:
-	// const onClick = useCallback(() => {
-	// 	model.reduce((state) => {
-	// 		return {
-	// 			count: state.count + 1
-	// 		}
-	// 	})
-	// }, [])
+	const [count] = myModel.useState('count')
 
-	return <button onClick={onClick}>increment count</button>
-})
+	return <p>Count: {count}</p>
+}
 
-// Button that uses an event dispatcher
-const ButtonClickEvent = HWM.withModel(({ model, ...props }) => {
-	const [count] = model.useState('count')
+function IncrementButton() {
+	const myModel = useMyModel()
 
-	const dispatchClearEvent = model.useEvent('click')
+	const [count, setCount] = myModel.useState('count')
 
-	const clear = useCallback(() => {
-		dispatchClearEvent(count)
-	}, [count])
+	return <button onClick={() => setCount(count + 1)}>
+		Increment
+	</button>
+}
 
-	return <button onClick={clear}>click to dispatch 'click' event</button>
-})
-
-// label with the current count value
-const CountLabel = HWM.withModel(({ model, ...props }) => {
-	const [count] = model.useState('count')
-
-	return <p>current count is: {count}</p>
-})
-
-// convinience component to handle model events in one place
-const EventHandler = HWM.withModel(({ model, ...props }) => {
-	const handleClickEvent = useCallback((x: HelloWorldModelEvents['click']) => {
-		alert(`clicked ${x} times`)
-	}, [])
-
-	model.useEvent('click', handleClickEvent)
-
-	return null
-})
-
-// the widget itself wrapped in HelloWorldModel Provider
-// any consumers (HWM.withModel(...)) rendered here
-// are inside the same context.
-// they can still use other models via useState hook
-// created with createModel()
-export const HelloWorldWidget = HWM.withProvider(({
-	model,
-	...props
-}) => {
-	return <>
-		<EventHandler/>     {/* Event handling component */}
-		<CountLabel />      {/* Label that displays updated count */}
-		<ButtonAdd/>        {/* Button that increases the count */}
-		<ButtonClickEvent/> {/* Button that dispatches 'click' event */}
-	</>
-})
+export function MyFancyWidget() {
+	return <MyModelProvider>
+		<Counter />
+		<IncrementButton />
+	</MyModelProvider>
+}
 ```
 
 Documentation
