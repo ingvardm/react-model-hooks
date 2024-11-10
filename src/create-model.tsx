@@ -8,24 +8,19 @@ import React, {
 import { Model } from './ModelWithHooks'
 import { ModelBase } from './ModelBase'
 
-type Ctor<
-	E extends {},
-	S extends {},
-	M extends ModelBase<E>
-> = new (initialState?: S) => M
+type Ctor<E extends {}, M extends ModelBase<E>> = new (...args: any[]) => M
 
-export type ModelProviderProps<E, S, M extends ModelBase<E>> = Omit<ProviderProps<M>, 'value'> & {
+export type ModelProviderProps<E, M extends ModelBase<E>> = Omit<ProviderProps<M>, 'value'> & {
 	value?: M
-	initialState?: S
 }
 
-export function createModel<E extends {} = {}, S extends {} = {}, M extends Model<E> = Model<E>>(CName: Ctor<E, S, M>) {
+export function createModel<E extends {} = {}, M extends Model<E> = Model<E>>(CName: Ctor<E, M>) {
 	const Ctx = createContext<M>({} as M)
 
-	function Provider({ value, initialState, ...props }: ModelProviderProps<E, S, M>) {
-		if (!value && !initialState) throw new Error('createModel: either <value> or <initialState> must be supplyed')
+	function Provider({ value, ...props }: ModelProviderProps<E, M>) {
+		if (!value) throw new Error('createModel: either <value> or <initialState> must be supplyed')
 
-		const viewModel = useMemo(() => value || new CName(initialState), [])
+		const viewModel = useMemo(() => value || new CName(), [])
 
 		return <Ctx.Provider {...props} value={viewModel} />
 	}
