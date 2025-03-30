@@ -8,16 +8,16 @@ import React, {
 import { Model } from './ModelWithHooks'
 import { ModelBase } from './ModelBase'
 
-type Ctor<E extends {}, M extends ModelBase<E>> = new (...args: any[]) => M
+type Ctor<TEvents extends {}, TModel extends ModelBase<TEvents>> = new (...args: any[]) => TModel
 
-export type ModelProviderProps<E, M extends ModelBase<E>> = Omit<ProviderProps<M>, 'value'> & {
-	value?: M
+export type ModelProviderProps<TEvents, TModel extends ModelBase<TEvents>> = Omit<ProviderProps<TModel>, 'value'> & {
+	value?: TModel
 }
 
-export function createModel<E extends {} = {}, M extends Model<E> = Model<E>>(CName: Ctor<E, M>) {
-	const Ctx = createContext<M>({} as M)
+export function createModel<TEvents extends {} = {}, TModel extends Model<TEvents> = Model<TEvents>>(CName: Ctor<TEvents, TModel>) {
+	const Ctx = createContext<TModel>({} as TModel)
 
-	function Provider({ value, ...props }: ModelProviderProps<E, M>) {
+	function Provider({ value, ...props }: ModelProviderProps<TEvents, TModel>) {
 		if (!value) throw new Error('createModel: either <value> or <initialState> must be supplyed')
 
 		const viewModel = useMemo(() => value || new CName(), [])

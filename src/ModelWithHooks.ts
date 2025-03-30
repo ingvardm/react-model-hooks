@@ -5,14 +5,14 @@ import {
 	useState,
 } from 'react'
 
-import { ModelBase, KeySub } from './ModelBase'
+import { ModelBase, ValueSubscription } from './ModelBase'
 import { deepEqual } from './compare-utils'
 
 export abstract class Model<E = {}> extends ModelBase<E> {
 	useState = <K extends keyof typeof this['state']>(key: K) => {
 		const [value, setValue] = useState((this.state as typeof this['state'])[key])
 
-		useEffect(() => this.onValueChange(key, setValue as KeySub<typeof this['state']>), [])
+		useEffect(() => this.onValueChange(key, setValue as ValueSubscription<typeof this['state']>), [])
 
 		const setter = useCallback((v: typeof this['state'][K]) => {
 			const delta: Partial<typeof this['state']> = {}
@@ -25,7 +25,7 @@ export abstract class Model<E = {}> extends ModelBase<E> {
 		return [value, setter] as [typeof value, (v: typeof value) => void]
 	}
 
-	useEvent = <K extends keyof E>(ns: K, cb?: KeySub<E, K>) => {
+	useEvent = <K extends keyof E>(ns: K, cb?: ValueSubscription<E, K>) => {
 		useEffect(() => {
 			if (cb)
 				return this.onEvent(ns, cb)

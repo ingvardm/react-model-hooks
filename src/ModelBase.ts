@@ -1,12 +1,14 @@
-export type KeySub<S, K extends keyof S = keyof S> = (v: S[K]) => void
-export type KeySubs<S> = Map<keyof S, Set<KeySub<S, keyof S>>>
-export type StateSub<S> = (s: S) => unknown
-export type StateSubs<S> = Set<StateSub<S>>
+export type ValueSubscription<S, K extends keyof S = keyof S> = (v: S[K]) => void
+export type ValueSubscriptions<S> = Map<keyof S, Set<ValueSubscription<S, keyof S>>>
+export type StateSubscription<S> = (s: S) => unknown
+export type StateSubscriptions<S> = Set<StateSubscription<S>>
+export type EventSubscription<E, K extends keyof E = keyof E> = (v: E[K]) => void
+export type EventSubscriptions<E> = Map<keyof E, Set<EventSubscription<E, keyof E>>>
 
-export abstract class ModelBase<E = {}> {
-	protected keySubs: KeySubs<typeof this['state']> = new Map()
-	protected stateSubs: StateSubs<typeof this['state']> = new Set()
-	protected listeners: KeySubs<E> = new Map()
+export abstract class ModelBase<TEvents = {}> {
+	protected keySubs: ValueSubscriptions<typeof this['state']> = new Map()
+	protected stateSubs: StateSubscriptions<typeof this['state']> = new Set()
+	protected listeners: EventSubscriptions<TEvents> = new Map()
 
 	protected updateSingleKeySubscriber = <K extends keyof typeof this['state']>(k: K, v: typeof this['state'][K]) => {
 		this.keySubs.get(k)?.forEach((cb) => cb(v))
@@ -26,11 +28,11 @@ export abstract class ModelBase<E = {}> {
 		this.stateSubs.forEach(cb => cb(state))
 	}
 
-	protected updateEventListeners = <K extends keyof E>(k: K, data?: E[K] extends undefined ? never : E[K]) => {
+	protected updateEventListeners = <K extends keyof TEvents>(k: K, data?: TEvents[K] extends undefined ? never : TEvents[K]) => {
 		this.listeners.get(k)?.forEach((cb) => cb(data!))
 	}
 
-	onStateChange = (cb: StateSub<typeof this['state']>) => {
+	onStateChange = (cb: StateSubscription<typeof this['state']>) => {
 		this.stateSubs.add(cb)
 
 		return () => {
@@ -38,7 +40,7 @@ export abstract class ModelBase<E = {}> {
 		}
 	}
 
-	onValueChange = <K extends keyof typeof this['state']>(k: K, cb: KeySub<typeof this['state']>) => {
+	onValueChange = <K extends keyof typeof this['state']>(k: K, cb: ValueSubscription<typeof this['state']>) => {
 		let keySubs = this.keySubs.get(k)
 
 		if (!keySubs) {
@@ -66,7 +68,7 @@ export abstract class ModelBase<E = {}> {
 		this.setState(nextState)
 	}
 
-	onEvent = <K extends keyof E>(k: K, cb: KeySub<E, K>) => {
+	onEvent = <K extends keyof TEvents>(k: K, cb: EventSubscription<TEvents, K>) => {
 		let nsListeners = this.listeners.get(k)
 
 		if (!nsListeners) {
@@ -74,14 +76,14 @@ export abstract class ModelBase<E = {}> {
 			this.listeners.set(k, nsListeners)
 		}
 
-		nsListeners.add(cb as KeySub<E, keyof E>)
+		nsListeners.add(cb as EventSubscription<TEvents, keyof TEvents>)
 
 		return () => {
-			nsListeners!.delete(cb as KeySub<E, keyof E>)
+			nsListeners!.delete(cb as EventSubscription<TEvents, keyof TEvents>)
 		}
 	}
 
-	dispatch = <K extends keyof E>(key: K, data?: E[K] extends undefined ? never : E[K]) => {
+	dispatch = <K extends keyof TEvents>(key: K, data?: TEvents[K] extends undefined ? never : TEvents[K]) => {
 		this.updateEventListeners(key, data)
 	}
 
