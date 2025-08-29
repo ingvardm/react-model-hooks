@@ -5,9 +5,11 @@ export type StateSubscriptions<S> = Set<StateSubscription<S>>
 export type EventSubscription<E, K extends keyof E = keyof E> = (v: E[K]) => void
 export type EventSubscriptions<E> = Map<keyof E, Set<EventSubscription<E, keyof E>>>
 
+type StatePlaceholder = Record<PropertyKey, unknown>
+
 export abstract class ModelBase<TEvents = {}> {
-	protected keySubs: ValueSubscriptions<typeof this['state']> = new Map()
-	protected stateSubs: StateSubscriptions<typeof this['state']> = new Set()
+	protected keySubs: ValueSubscriptions<StatePlaceholder> = new Map()
+	protected stateSubs: StateSubscriptions<StatePlaceholder> = new Set()
 	protected listeners: EventSubscriptions<TEvents> = new Map()
 
 	protected updateSingleKeySubscriber = <K extends keyof typeof this['state']>(k: K, v: typeof this['state'][K]) => {
@@ -51,7 +53,7 @@ export abstract class ModelBase<TEvents = {}> {
 		keySubs.add(cb)
 
 		return () => {
-			keySubs.delete(cb)
+			keySubs?.delete(cb)
 		}
 	}
 
@@ -87,5 +89,5 @@ export abstract class ModelBase<TEvents = {}> {
 		this.updateEventListeners(key, data)
 	}
 
-	abstract state: unknown
+	abstract state: StatePlaceholder
 }
