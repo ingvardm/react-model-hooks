@@ -3,6 +3,7 @@ import {
 	useEffect,
 	useRef,
 	useState,
+	useSyncExternalStore,
 } from 'react'
 
 import { ModelBase, ValueSubscription } from './ModelBase'
@@ -23,6 +24,28 @@ export abstract class Model<E = {}> extends ModelBase<E> {
 		}, [key])
 
 		return [value, setter] as [typeof value, (v: typeof value) => void]
+	}
+
+	useStateSync = <K extends keyof typeof this['state']>(key: K) => {
+		const setVal = useCallback((v: typeof this['state'][K]) => {
+			const prev = (this.state as typeof this['state'])[key]
+
+			if (Object.is(prev, v)) return
+
+			const delta: Partial<typeof this['state']> = {}
+
+			delta[key] = v
+
+			this.setState(delta)
+		}, [key])
+
+		const val = useSyncExternalStore<typeof this['state'][K]>(
+			(cb: () => void) => this.onValueChange(key, cb),
+			() => this.state as typeof this['state'][typeof key],
+			() => this.state as typeof this['state'][typeof key],
+		)
+
+		return [val, setVal]
 	}
 
 	useEvent = <K extends keyof E>(ns: K, cb?: ValueSubscription<E, K>) => {
