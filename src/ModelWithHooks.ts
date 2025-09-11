@@ -1,32 +1,10 @@
-import {
-	useCallback,
-	useEffect,
-	useRef,
-	useState,
-	useSyncExternalStore,
-} from 'react'
+import { useCallback, useEffect, useSyncExternalStore } from 'react'
 
-import { ModelBase, ValueSubscription } from './ModelBase'
-import { deepEqual } from './compare-utils'
+import { ModelBase } from './ModelBase'
+import { EventsScheme, ValueSubscription } from './common-types'
 
-export abstract class Model<E = {}> extends ModelBase<E> {
+export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 	useState = <K extends keyof typeof this['state']>(key: K) => {
-		const [value, setValue] = useState((this.state as typeof this['state'])[key])
-
-		useEffect(() => this.onValueChange(key, setValue as ValueSubscription<typeof this['state']>), [])
-
-		const setter = useCallback((v: typeof this['state'][K]) => {
-			const delta: Partial<typeof this['state']> = {}
-
-			delta[key] = v
-
-			this.setState(delta)
-		}, [key])
-
-		return [value, setter] as [typeof value, (v: typeof value) => void]
-	}
-
-	useStateSync = <K extends keyof typeof this['state']>(key: K) => {
 		const setVal = useCallback((v: typeof this['state'][K]) => {
 			const prev = (this.state as typeof this['state'])[key]
 
@@ -39,52 +17,34 @@ export abstract class Model<E = {}> extends ModelBase<E> {
 			this.setState(delta)
 		}, [key])
 
-		const val = useSyncExternalStore<typeof this['state'][K]>(
-			(cb: () => void) => this.onValueChange(key, cb),
-			() => this.state as typeof this['state'][typeof key],
-			() => this.state as typeof this['state'][typeof key],
+		const val = useSyncExternalStore(
+			(cb) => this.onValueChange(key, cb),
+			() => this.state[key],
+			() => this.state[key],
 		)
 
 		return [val, setVal]
 	}
 
+	useMapper = <T>(mapper: (state: typeof this['state']) => T) => {
+		return useSyncExternalStore<T>(
+			(onChange) => this.onStateChange(onChange),
+			() => mapper(this.state),
+			() => mapper(this.state),
+		)
+	}
+
 	useEvent = <K extends keyof E>(ns: K, cb?: ValueSubscription<E, K>) => {
 		useEffect(() => {
-			if (cb)
-				return this.onEvent(ns, cb)
+			let removeListener = () => { }
+
+			if (!!cb) {
+				removeListener = this.onEvent(ns, cb)
+			}
+
+			return removeListener
 		}, [cb])
 
 		return (data?: E[K] extends undefined ? never : E[K]) => this.dispatch(ns, data)
-	}
-
-	useMapper = <T>(cb: (state: typeof this['state']) => T, deps: any[]) => {
-		const [value, setValue] = useState(cb(this.state))
-
-		const lastValue = useRef(value)
-		const cbRef = useRef(cb)
-
-		// state change callback
-		// will update the value if not deep equal
-		const onStateChange = useCallback((state: typeof this['state']) => {
-			const out = cbRef.current(state)
-
-			if (!deepEqual(lastValue.current, out)) {
-				lastValue.current = out
-				setValue(out)
-			}
-		}, [])
-
-		// subscribe to state change
-		// return unsubscribe as cleanup
-		useEffect(() => this.onStateChange(onStateChange), [])
-
-		// update cb ref when deps change
-		// also update value if cb output is
-		useEffect(() => {
-			cbRef.current = cb
-			onStateChange(this.state)
-		}, deps)
-
-		return value
 	}
 }

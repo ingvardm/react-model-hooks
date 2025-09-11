@@ -1,38 +1,54 @@
-export type ValueSubscription<S, K extends keyof S = keyof S> = (v: S[K]) => void
-export type ValueSubscriptions<S> = Map<keyof S, Set<ValueSubscription<S, keyof S>>>
-export type StateSubscription<S> = (s: S) => unknown
-export type StateSubscriptions<S> = Set<StateSubscription<S>>
-export type EventSubscription<E, K extends keyof E = keyof E> = (v: E[K]) => void
-export type EventSubscriptions<E> = Map<keyof E, Set<EventSubscription<E, keyof E>>>
+import {
+	EventSubscription,
+	EventSubscriptions,
+	EventsScheme,
+	StatePlaceholder,
+	StateSubscription,
+	StateSubscriptions,
+	ValueSubscription,
+	ValueSubscriptions,
+} from "./common-types"
 
-type StatePlaceholder = Record<PropertyKey, unknown>
+function updateSingleKeySubscriber<
+	S extends StatePlaceholder,
+	K extends keyof S,
+>(subs: ValueSubscriptions<S>, k: K, v: S[K]) {
+	subs.get(k)?.forEach((cb) => cb(v))
+}
 
-export abstract class ModelBase<TEvents = {}> {
+function updateKeySubscribers<S extends StatePlaceholder>(
+	subs: ValueSubscriptions<S>,
+	delta: Partial<S>,
+) {
+	const keyVals = Object.entries(delta)
+
+	for (const [key, val] of keyVals) {
+		if (subs.has(key)) {
+			updateSingleKeySubscriber(subs, key, val)
+		}
+	}
+}
+
+function updateStateChangeSubscribers<S extends StatePlaceholder>(
+	subs: StateSubscriptions<S>,
+	state: S,
+) {
+	subs.forEach(cb => cb(state))
+}
+
+
+function updateEventListeners<
+	TEvents extends EventsScheme,
+	K extends keyof TEvents,
+	D extends TEvents[K],
+>(listeners: EventSubscriptions<TEvents>, k: K, data?: D) {
+	listeners.get(k)?.forEach((cb) => cb(data!))
+}
+
+export abstract class ModelBase<TEvents extends EventsScheme = {}> {
 	protected keySubs: ValueSubscriptions<StatePlaceholder> = new Map()
 	protected stateSubs: StateSubscriptions<StatePlaceholder> = new Set()
 	protected listeners: EventSubscriptions<TEvents> = new Map()
-
-	protected updateSingleKeySubscriber = <K extends keyof typeof this['state']>(k: K, v: typeof this['state'][K]) => {
-		this.keySubs.get(k)?.forEach((cb) => cb(v))
-	}
-
-	protected updateKeySubscribers = (delta: Partial<typeof this['state']>) => {
-		const keyVals = Object.entries(delta) as [keyof typeof this['state'], typeof this['state'][keyof typeof this['state']]][]
-
-		for (const [key, val] of keyVals) {
-			if (this.keySubs.has(key)) {
-				this.updateSingleKeySubscriber(key, val)
-			}
-		}
-	}
-
-	protected updateStateChangeSubscribers = (state: typeof this['state']) => {
-		this.stateSubs.forEach(cb => cb(state))
-	}
-
-	protected updateEventListeners = <K extends keyof TEvents>(k: K, data?: TEvents[K] extends undefined ? never : TEvents[K]) => {
-		this.listeners.get(k)?.forEach((cb) => cb(data!))
-	}
 
 	onStateChange = (cb: StateSubscription<typeof this['state']>) => {
 		this.stateSubs.add(cb)
@@ -60,8 +76,8 @@ export abstract class ModelBase<TEvents = {}> {
 	setState = (delta: Partial<typeof this['state']>) => {
 		this.state = { ...this.state as {}, ...delta }
 
-		this.updateStateChangeSubscribers(this.state)
-		this.updateKeySubscribers(delta)
+		updateStateChangeSubscribers(this.stateSubs, this.state)
+		updateKeySubscribers(this.keySubs, delta)
 	}
 
 	reduce = (reducer: (state: typeof this['state']) => Partial<typeof this['state']>) => {
@@ -86,7 +102,7 @@ export abstract class ModelBase<TEvents = {}> {
 	}
 
 	dispatch = <K extends keyof TEvents>(key: K, data?: TEvents[K] extends undefined ? never : TEvents[K]) => {
-		this.updateEventListeners(key, data)
+		updateEventListeners(this.listeners, key, data)
 	}
 
 	abstract state: StatePlaceholder

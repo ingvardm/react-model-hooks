@@ -2,27 +2,52 @@ import React, {
 	createContext,
 	ProviderProps,
 	useContext,
+	useEffect,
 	useMemo,
 } from 'react'
 
 import { Model } from './ModelWithHooks'
 import { ModelBase } from './ModelBase'
+import { EventsScheme } from './common-types'
 
 type Ctor<TEvents extends {}, TModel extends ModelBase<TEvents>> = new (...args: any[]) => TModel
 
-export type ModelProviderProps<TEvents, TModel extends ModelBase<TEvents>> = Omit<ProviderProps<TModel>, 'value'> & {
+export type ModelProviderProps<TEvents extends EventsScheme, TModel extends ModelBase<TEvents>> = Omit<ProviderProps<TModel>, 'value'> & {
 	value?: TModel
+	state?: TModel['state']
+	onChange?: (state: TModel['state']) => void
 }
 
 export function createModel<TEvents extends {} = {}, TModel extends Model<TEvents> = Model<TEvents>>(CName: Ctor<TEvents, TModel>) {
 	const Ctx = createContext<TModel>({} as TModel)
 
-	function Provider({ value, ...props }: ModelProviderProps<TEvents, TModel>) {
-		if (!value) throw new Error('createModel: either <value> or <initialState> must be supplyed')
+	function Provider({
+		value,
+		state,
+		onChange,
+		...props
+	}: ModelProviderProps<TEvents, TModel>) {
+		const model = useMemo(() => value || new CName(), [])
 
-		const viewModel = useMemo(() => value || new CName(), [])
+		useEffect(() => {
+			if (state) {
+				model.setState(state)
+			}
+		}, [state])
 
-		return <Ctx.Provider {...props} value={viewModel} />
+		useEffect(() => {
+			let listener = () => { }
+
+			if (onChange) {
+				listener = model.onStateChange(onChange)
+			}
+
+			return () => {
+				listener()
+			}
+		}, [onChange])
+
+		return <Ctx.Provider {...props} value={model} />
 	}
 
 	function useModel() {
