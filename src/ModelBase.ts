@@ -45,10 +45,10 @@ function updateEventListeners<
 	listeners.get(k)?.forEach((cb) => cb(data!))
 }
 
-export abstract class ModelBase<TEvents extends EventsScheme = {}> {
+export abstract class ModelBase<TEvents extends EventsScheme = EventsScheme> {
 	protected keySubs: ValueSubscriptions<StatePlaceholder> = new Map()
 	protected stateSubs: StateSubscriptions<StatePlaceholder> = new Set()
-	protected listeners: EventSubscriptions<TEvents> = new Map()
+	protected listeners: EventSubscriptions<EventsScheme> = new Map()
 
 	onStateChange = (cb: StateSubscription<typeof this['state']>) => {
 		this.stateSubs.add(cb)
@@ -73,8 +73,8 @@ export abstract class ModelBase<TEvents extends EventsScheme = {}> {
 		}
 	}
 
-	setState = (delta: Partial<typeof this['state']>) => {
-		this.state = { ...this.state as {}, ...delta }
+	setState = (delta: Partial<StatePlaceholder<typeof this['state']>>) => {
+		this.state = { ...this.state, ...delta }
 
 		updateStateChangeSubscribers(this.stateSubs, this.state)
 		updateKeySubscribers(this.keySubs, delta)
@@ -87,22 +87,22 @@ export abstract class ModelBase<TEvents extends EventsScheme = {}> {
 	}
 
 	onEvent = <K extends keyof TEvents>(k: K, cb: EventSubscription<TEvents, K>) => {
-		let nsListeners = this.listeners.get(k)
+		let nsListeners = this.listeners.get(k as keyof EventsScheme)
 
 		if (!nsListeners) {
 			nsListeners = new Set()
-			this.listeners.set(k, nsListeners)
+			this.listeners.set(k as keyof EventsScheme, nsListeners)
 		}
 
-		nsListeners.add(cb as EventSubscription<TEvents, keyof TEvents>)
+		nsListeners.add(cb as EventSubscription<EventsScheme, keyof EventsScheme>)
 
 		return () => {
-			nsListeners!.delete(cb as EventSubscription<TEvents, keyof TEvents>)
+			nsListeners!.delete(cb as EventSubscription<EventsScheme, keyof EventsScheme>)
 		}
 	}
 
 	dispatch = <K extends keyof TEvents>(key: K, data?: TEvents[K] extends undefined ? never : TEvents[K]) => {
-		updateEventListeners(this.listeners, key, data)
+		updateEventListeners(this.listeners, key as keyof EventsScheme, data)
 	}
 
 	abstract state: StatePlaceholder

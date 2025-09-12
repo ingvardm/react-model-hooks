@@ -4,7 +4,7 @@ import { ModelBase } from './ModelBase'
 import { EventsScheme, ValueSubscription } from './common-types'
 
 export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
-	useState = <K extends keyof typeof this['state']>(key: K) => {
+	useState = <K extends keyof typeof this['state']>(key: K): [typeof this['state'][K], (v: typeof this['state'][K]) => void] => {
 		const setVal = useCallback((v: typeof this['state'][K]) => {
 			const prev = (this.state as typeof this['state'])[key]
 
@@ -17,7 +17,7 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 			this.setState(delta)
 		}, [key])
 
-		const val = useSyncExternalStore(
+		const val: typeof this['state'][typeof key] = useSyncExternalStore(
 			(cb) => this.onValueChange(key, cb),
 			() => this.state[key],
 			() => this.state[key],
