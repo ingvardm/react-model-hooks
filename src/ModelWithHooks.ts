@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore } from 'react'
+import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
 
 import { ModelBase } from './ModelBase'
 import { EventsScheme, ValueSubscription } from './common-types'
@@ -27,10 +27,33 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 	}
 
 	useMapper = <T>(mapper: (state: typeof this['state']) => T) => {
+		const lastStateRef = useRef<typeof this['state'] | null>(null)
+		const lastValueRef = useRef<T | null>(null)
+		const mapperRef = useRef(mapper)
+
+		useEffect(() => {
+			mapperRef.current = mapper
+		}, [mapper])
+
+		const getSnapshot = useCallback(() => {
+			const s = this.state
+
+			if (lastStateRef.current === s && lastValueRef.current !== null) {
+				return lastValueRef.current as T
+			}
+
+			const v = mapperRef.current(s)
+
+			lastStateRef.current = s
+			lastValueRef.current = v
+
+			return v
+		}, [])
+
 		return useSyncExternalStore<T>(
 			(onChange) => this.onStateChange(onChange),
-			() => mapper(this.state),
-			() => mapper(this.state),
+			getSnapshot,
+			getSnapshot,
 		)
 	}
 
@@ -43,7 +66,7 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 			}
 
 			return removeListener
-		}, [cb])
+		}, [ns, cb])
 
 		return (data?: E[K] extends undefined ? never : E[K]) => this.dispatch(ns, data)
 	}
