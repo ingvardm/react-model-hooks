@@ -13,7 +13,10 @@ import {
 	ValueSubscription,
 } from './common-types'
 
-function computeDeps<S extends StatePlaceholder, M extends (s: S) => unknown>(mapper: M, state: S) {
+function computeDeps<
+	S extends StatePlaceholder,
+	M extends (s: S) => unknown,
+>(mapper: M, state: S) {
 	const deps = new Set<keyof S>()
 
 	mapper(new Proxy(state, {
@@ -41,10 +44,12 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 			this.setState(delta)
 		}, [key])
 
+		const getSnapshot = useCallback(() => this.state[key], [key])
+
 		const val: typeof this['state'][typeof key] = useSyncExternalStore(
 			(cb) => this.onValueChange(key, () => cb()),
-			() => this.state[key],
-			() => this.state[key],
+			getSnapshot,
+			getSnapshot,
 		)
 
 		return [val, setVal]
