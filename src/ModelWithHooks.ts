@@ -1,7 +1,31 @@
-import { useCallback, useEffect, useRef, useSyncExternalStore } from 'react'
+import {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useSyncExternalStore,
+} from 'react'
 
 import { ModelBase } from './ModelBase'
-import { EventsScheme, ValueSubscription } from './common-types'
+import {
+	EventsScheme,
+	StatePlaceholder,
+	ValueSubscription,
+} from './common-types'
+
+function computeDeps<S extends StatePlaceholder, M extends (s: S) => unknown>(mapper: M, state: S) {
+	const deps = new Set<keyof S>()
+
+	mapper(new Proxy(state, {
+		get: (t, k) => {
+			deps.add(k)
+
+			return t[k]
+		},
+	}))
+
+	return Array.from(deps)
+}
 
 export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 	useState = <K extends keyof typeof this['state']>(key: K): [typeof this['state'][K], (v: typeof this['state'][K]) => void] => {
@@ -18,7 +42,7 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 		}, [key])
 
 		const val: typeof this['state'][typeof key] = useSyncExternalStore(
-			(cb) => this.onValueChange(key, cb),
+			(cb) => this.onValueChange(key, () => cb()),
 			() => this.state[key],
 			() => this.state[key],
 		)
@@ -27,31 +51,36 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 	}
 
 	useMapper = <T>(mapper: (state: typeof this['state']) => T) => {
-		const lastStateRef = useRef<typeof this['state'] | null>(null)
-		const lastValueRef = useRef<T | null>(null)
 		const mapperRef = useRef(mapper)
+
+		const lastState = useRef(this.state)
+		const lastValue = useRef(mapper(this.state))
+
+		const mapperDeps = useMemo(() => {
+			return computeDeps(mapper, this.state)
+		}, [mapper])
 
 		useEffect(() => {
 			mapperRef.current = mapper
 		}, [mapper])
 
 		const getSnapshot = useCallback(() => {
-			const s = this.state
+			if (lastState.current !== this.state) {
+				lastState.current = this.state
+				lastValue.current = mapperRef.current(this.state)
 
-			if (lastStateRef.current === s && lastValueRef.current !== null) {
-				return lastValueRef.current as T
+				return lastValue.current
 			}
 
-			const v = mapperRef.current(s)
-
-			lastStateRef.current = s
-			lastValueRef.current = v
-
-			return v
+			return lastValue.current
 		}, [])
 
+		const subscribe = useCallback((onChange: () => void) => {
+			return this.onValuesChange(mapperDeps, onChange)
+		}, [mapperDeps])
+
 		return useSyncExternalStore<T>(
-			(onChange) => this.onStateChange(onChange),
+			subscribe,
 			getSnapshot,
 			getSnapshot,
 		)

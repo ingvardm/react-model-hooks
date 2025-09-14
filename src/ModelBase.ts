@@ -9,11 +9,22 @@ import {
 	ValueSubscriptions,
 } from "./common-types"
 
+//#region utils
 function updateSingleKeySubscriber<
 	S extends StatePlaceholder,
 	K extends keyof S,
->(subs: ValueSubscriptions<S>, k: K, v: S[K]) {
-	subs.get(k)?.forEach((cb) => cb(v))
+>(
+	subs: ValueSubscriptions<S>,
+	k: K,
+	v: S[K],
+	uniqueSubsSet?: WeakSet<ValueSubscription<S, keyof S>>
+) {
+	subs.get(k)?.forEach((cb) => {
+		if (!uniqueSubsSet?.has(cb)) {
+			uniqueSubsSet?.add(cb)
+			cb(v)
+		}
+	})
 }
 
 function updateKeySubscribers<S extends StatePlaceholder>(
@@ -22,9 +33,11 @@ function updateKeySubscribers<S extends StatePlaceholder>(
 ) {
 	const keyVals = Object.entries(delta)
 
+	const subscribersSetRef = new WeakSet<ValueSubscription<S, keyof S>>()
+
 	for (const [key, val] of keyVals) {
 		if (subs.has(key)) {
-			updateSingleKeySubscriber(subs, key, val)
+			updateSingleKeySubscriber(subs, key, val, subscribersSetRef)
 		}
 	}
 }
@@ -44,6 +57,7 @@ function updateEventListeners<
 >(listeners: EventSubscriptions<TEvents>, k: K, data?: D) {
 	listeners.get(k)?.forEach((cb) => cb(data!))
 }
+//#endregion utils
 
 export abstract class ModelBase<TEvents extends EventsScheme = EventsScheme> {
 	protected keySubs: ValueSubscriptions<StatePlaceholder> = new Map()
@@ -70,6 +84,18 @@ export abstract class ModelBase<TEvents extends EventsScheme = EventsScheme> {
 
 		return () => {
 			keySubs?.delete(cb)
+		}
+	}
+
+	onValuesChange = <K extends keyof typeof this['state']>(selector: K[], cb: ValueSubscription<typeof this['state']>) => {
+		const unsubs: (() => void)[] = []
+
+		selector.forEach(k => {
+			unsubs.push(this.onValueChange(k, cb))
+		})
+
+		return () => {
+			unsubs.forEach(unsub => unsub())
 		}
 	}
 
