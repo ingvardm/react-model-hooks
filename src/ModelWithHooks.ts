@@ -15,11 +15,10 @@ import {
 
 function computeDeps<
 	S extends StatePlaceholder,
-	M extends (s: S) => unknown,
->(mapper: M, state: S) {
+>(func: (s: S) => void, state: S) {
 	const deps = new Set<keyof S>()
 
-	mapper(new Proxy(state, {
+	func(new Proxy(state, {
 		get: (t, k) => {
 			deps.add(k)
 
@@ -61,12 +60,10 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 		const lastState = useRef(this.state)
 		const lastValue = useRef(mapper(this.state))
 
-		const mapperDeps = useMemo(() => {
-			return computeDeps(mapper, this.state)
-		}, [mapper])
-
-		useEffect(() => {
+		const deps = useMemo(() => {
 			mapperRef.current = mapper
+
+			return computeDeps(mapper, this.state)
 		}, [mapper])
 
 		const getSnapshot = useCallback(() => {
@@ -81,14 +78,29 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 		}, [])
 
 		const subscribe = useCallback((onChange: () => void) => {
-			return this.onValuesChange(mapperDeps, onChange)
-		}, [mapperDeps])
+			return this.onValuesChange(deps, onChange)
+		}, [deps])
 
 		return useSyncExternalStore<T>(
 			subscribe,
 			getSnapshot,
 			getSnapshot,
 		)
+	}
+
+	useEffect = <T>(effect: (state: typeof this['state']) => T) => {
+		const effectRef = useRef(effect)
+
+		const deps = useMemo(() => {
+			effectRef.current = effect
+
+			return computeDeps(effect, this.state)
+		}, [effect])
+
+		useEffect(() => this.onValuesChange(
+			deps,
+			() => effectRef.current(this.state)
+		), [deps])
 	}
 
 	useEvent = <K extends keyof E>(ns: K, cb?: ValueSubscription<E, K>) => {

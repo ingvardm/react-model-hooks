@@ -87,11 +87,11 @@ export abstract class ModelBase<TEvents extends EventsScheme = EventsScheme> {
 		}
 	}
 
-	onValuesChange = <K extends keyof typeof this['state']>(selector: K[], cb: ValueSubscription<typeof this['state']>) => {
+	onValuesChange = <K extends keyof typeof this['state']>(selector: K[], cb: StateSubscription<typeof this['state']>) => {
 		const unsubs: (() => void)[] = []
 
 		selector.forEach(k => {
-			unsubs.push(this.onValueChange(k, cb))
+			unsubs.push(this.onValueChange(k, () => cb(this.state)))
 		})
 
 		return () => {
