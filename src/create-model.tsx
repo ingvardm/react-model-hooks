@@ -60,5 +60,14 @@ export function createModel<TEvents extends {} = {}, TModel extends Model<TEvent
 		return model
 	}
 
-	return { Ctx, Provider, useModel }
+	function create(state?: TModel["state"]) {
+		return new CName(state)
+	}
+
+	return {
+		Ctx,
+		create,
+		Provider,
+		useModel,
+	}
 }
