@@ -15,14 +15,15 @@ function updateSingleKeySubscriber<
 	K extends keyof S,
 >(
 	subs: ValueSubscriptions<S>,
-	k: K,
-	v: S[K],
+	key: K,
+	currentVal: S[K],
+	prevVal: S[K],
 	uniqueSubsSet?: WeakSet<ValueSubscription<S, keyof S>>
 ) {
-	subs.get(k)?.forEach((cb) => {
-		if (!uniqueSubsSet?.has(cb)) {
-			uniqueSubsSet?.add(cb)
-			cb(v)
+	subs.get(key)?.forEach((subscription) => {
+		if (!uniqueSubsSet?.has(subscription)) {
+			uniqueSubsSet?.add(subscription)
+			subscription(currentVal, prevVal)
 		}
 	})
 }
@@ -30,23 +31,27 @@ function updateSingleKeySubscriber<
 function updateKeySubscribers<S extends StatePlaceholder>(
 	subs: ValueSubscriptions<S>,
 	delta: Partial<S>,
+	prevState: S,
 ) {
 	const keyVals = Object.entries(delta)
 
 	const subscribersSetRef = new WeakSet<ValueSubscription<S, keyof S>>()
 
 	for (const [key, val] of keyVals) {
-		if (subs.has(key)) {
-			updateSingleKeySubscriber(subs, key, val, subscribersSetRef)
+		const prevVal = prevState[key] as typeof val
+
+		if (subs.has(key) && !Object.is(val, prevVal)) {
+			updateSingleKeySubscriber(subs, key, val, prevVal, subscribersSetRef)
 		}
 	}
 }
 
 function updateStateChangeSubscribers<S extends StatePlaceholder>(
 	subs: StateSubscriptions<S>,
-	state: S,
+	currentState: S,
+	prevState: S,
 ) {
-	subs.forEach(cb => cb(state))
+	subs.forEach(subscription => subscription(currentState, prevState))
 }
 
 
@@ -54,81 +59,87 @@ function updateEventListeners<
 	TEvents extends EventsScheme,
 	K extends keyof TEvents,
 	D extends TEvents[K],
->(listeners: EventSubscriptions<TEvents>, k: K, data?: D) {
-	listeners.get(k)?.forEach((cb) => cb(data!))
+>(eventListeners: EventSubscriptions<TEvents>, key: K, data?: D) {
+	eventListeners.get(key)?.forEach((subscription) => subscription(data!))
 }
 //#endregion utils
 
 export abstract class ModelBase<TEvents extends EventsScheme = EventsScheme> {
-	protected keySubs: ValueSubscriptions<StatePlaceholder> = new Map()
-	protected stateSubs: StateSubscriptions<StatePlaceholder> = new Set()
-	protected listeners: EventSubscriptions<EventsScheme> = new Map()
+	protected valueSubscriptions: ValueSubscriptions<StatePlaceholder> = new Map()
+	protected stateSubscriptions: StateSubscriptions<StatePlaceholder> = new Set()
+	protected eventListeners: EventSubscriptions<EventsScheme> = new Map()
 
-	onStateChange = (cb: StateSubscription<typeof this['state']>) => {
-		this.stateSubs.add(cb)
+	onStateChange = (subscription: StateSubscription<typeof this['state']>) => {
+		this.stateSubscriptions.add(subscription)
 
 		return () => {
-			this.stateSubs.delete(cb)
+			this.stateSubscriptions.delete(subscription)
 		}
 	}
 
-	onValueChange = <K extends keyof typeof this['state']>(k: K, cb: ValueSubscription<typeof this['state']>) => {
-		let keySubs = this.keySubs.get(k)
+	onValueChange = <K extends keyof typeof this['state']>(
+		key: K,
+		subscription: ValueSubscription<typeof this['state']>,
+	) => {
+		let subscriptions = this.valueSubscriptions.get(key)
 
-		if (!keySubs) {
-			keySubs = new Set()
-			this.keySubs.set(k, keySubs)
+		if (!subscriptions) {
+			subscriptions = new Set()
+			this.valueSubscriptions.set(key, subscriptions)
 		}
 
-		keySubs.add(cb)
+		subscriptions.add(subscription)
 
 		return () => {
-			keySubs?.delete(cb)
+			subscriptions?.delete(subscription)
 		}
 	}
 
-	onValuesChange = <K extends keyof typeof this['state']>(selector: K[], cb: StateSubscription<typeof this['state']>) => {
-		const unsubs: (() => void)[] = []
-
-		selector.forEach(k => {
-			unsubs.push(this.onValueChange(k, () => cb(this.state)))
+	onValuesChange = <K extends keyof typeof this['state']>(
+		keys: readonly K[],
+		subscription: StateSubscription<typeof this['state']>,
+	) => {
+		return this.onStateChange((currentState, prevState) => {
+			for (const key of keys) {
+				if (!Object.is(prevState[key], currentState[key])) {
+					subscription(currentState, prevState)
+					break
+				}
+			}
 		})
-
-		return () => {
-			unsubs.forEach(unsub => unsub())
-		}
 	}
 
 	setState = (delta: Partial<StatePlaceholder<typeof this['state']>>) => {
+		const prevState = { ...this.state }
 		this.state = { ...this.state, ...delta }
 
-		updateStateChangeSubscribers(this.stateSubs, this.state)
-		updateKeySubscribers(this.keySubs, delta)
+		updateStateChangeSubscribers(this.stateSubscriptions, this.state, prevState)
+		updateKeySubscribers(this.valueSubscriptions, delta, prevState)
 	}
 
 	reduce = (reducer: (state: typeof this['state']) => Partial<typeof this['state']>) => {
-		const nextState = reducer(this.state)
+		const nextState = reducer({ ...this.state })
 
 		this.setState(nextState)
 	}
 
-	onEvent = <K extends keyof TEvents>(k: K, cb: EventSubscription<TEvents, K>) => {
-		let nsListeners = this.listeners.get(k as keyof EventsScheme)
+	onEvent = <K extends keyof TEvents>(key: K, subscription: EventSubscription<TEvents, K>) => {
+		let nsListeners = this.eventListeners.get(key as keyof EventsScheme)
 
 		if (!nsListeners) {
 			nsListeners = new Set()
-			this.listeners.set(k as keyof EventsScheme, nsListeners)
+			this.eventListeners.set(key as keyof EventsScheme, nsListeners)
 		}
 
-		nsListeners.add(cb as EventSubscription<EventsScheme, keyof EventsScheme>)
+		nsListeners.add(subscription as EventSubscription<EventsScheme, keyof EventsScheme>)
 
 		return () => {
-			nsListeners!.delete(cb as EventSubscription<EventsScheme, keyof EventsScheme>)
+			nsListeners!.delete(subscription as EventSubscription<EventsScheme, keyof EventsScheme>)
 		}
 	}
 
 	dispatch = <K extends keyof TEvents>(key: K, data?: TEvents[K] extends undefined ? never : TEvents[K]) => {
-		updateEventListeners(this.listeners, key as keyof EventsScheme, data)
+		updateEventListeners(this.eventListeners, key as keyof EventsScheme, data)
 	}
 
 	abstract state: StatePlaceholder

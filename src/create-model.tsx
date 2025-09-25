@@ -15,7 +15,7 @@ type Ctor<TEvents extends {}, TModel extends ModelBase<TEvents>> = new (...args:
 export type ModelProviderProps<TEvents extends EventsScheme, TModel extends ModelBase<TEvents>> = Omit<ProviderProps<TModel>, 'value'> & {
 	value?: TModel
 	state?: TModel['state']
-	onChange?: (state: TModel['state']) => void
+	onChange?: (state: TModel['state'], prevState: TModel['state']) => void
 }
 
 export function createModel<TEvents extends {} = {}, TModel extends Model<TEvents> = Model<TEvents>>(CName: Ctor<TEvents, TModel>) {
