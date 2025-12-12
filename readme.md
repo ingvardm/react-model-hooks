@@ -1,74 +1,101 @@
 # React Better Model
 
-Typed, class-based models with tiny React hooks. Keep state outside components, scope it with a Provider, and subscribe narrowly with `useState`, `useMapper`, and `useEvent`.
+Tiny, class-based models for React. Stay in TypeScript, keep state out of components, bootstrap with a single `createModel` call, and wire state/derived values/events with a handful of hooks.
 
-- Install: `npm i react-better-model` or `yarn add react-better-model`
-- Quick start: Docs/QuickStart.md
-- Full API: Docs/API.md
+## Installation
+```bash
+npm i react-better-model
+```
+```bash
+yarn add react-better-model
+```
+```bash
+pnpm add react-better-model
+```
 
-## 10-second counter
-```tsx
+## Minimal example
+```ts
+// DiceModel.ts
 import { Model, createModel } from 'react-better-model'
 
-class Counter extends Model {
-  state = { n: 0 }
-}
-
-const { Provider, useModel } = createModel(Counter)
-
-export function App() {
-  const counter = useModel()
-  const [n, setN] = counter.useState('n')
-  return <button onClick={() => setN(n + 1)}>Count: {n}</button>
-}
-```
-```tsx
-// index.tsx
-import { createRoot } from 'react-dom/client'
-import { App, Provider } from './counter'
-
-createRoot(document.getElementById('root')!).render(
-  <Provider>
-    <App />
-  </Provider>
-)
-```
-
-## Inline model (perfect for portals)
-```tsx
-import { createModel, Model } from 'react-better-model'
-
-export const { Provider: InlineProvider, useModel: useInline } = createModel(
-  class InlineModel extends Model {
-    state = { counter: 0 }
+class DiceModel extends Model {
+  constructor() {
+    super({ lastRoll: 1 })
   }
-)
 
-function InlineWidget() {
-  const model = useInline()
-  const [n, setN] = model.useState('counter')
-  return <button onClick={() => setN(n + 1)}>Count: {n}</button>
+  roll = () => {
+    const next = 1 + Math.floor(Math.random() * 6)
+    this.setState({ lastRoll: next })
+  }
 }
-```
-Render wherever you need the scope:
-```tsx
-<InlineProvider>
-  <InlineWidget />
-</InlineProvider>
+
+export const {
+  Provider: DiceProvider,
+  useModel: useDice,
+} = createModel(DiceModel)
 ```
 
-## Bring your own instance
-Use an existing model instance for dependency injection or to control the model outside React.
 ```tsx
-function App() {
-  const modelInstance = useMemo(() => new Counter(), [])
-  modelInstance.useEvent('reset', () => modelInstance.setState({ n: 0 }))
+// RollButton.tsx
+import React from 'react'
+import { useDice } from './DiceModel'
+
+export function RollButton() {
+  const model = useDice()
 
   return (
-    <Provider value={modelInstance}>
-      <CounterView />
-    </Provider>
+    <button onClick={model.roll}>
+      Roll the die
+    </button>
   )
 }
 ```
-You can create as many isolated instances as you like—no global store required.
+
+```tsx
+// RollResult.tsx
+import React from 'react'
+import { useDice } from './DiceModel'
+
+export function RollResult() {
+  const model = useDice()
+  const [value] = model.useState('lastRoll')
+  return <p>Last roll: {value}</p>
+}
+```
+
+```tsx
+// root component
+import React from 'react'
+import { createRoot } from 'react-dom/client'
+import { RollButton } from './RollButton'
+import { RollResult } from './RollResult'
+import { DiceProvider } from './DiceModel'
+
+createRoot(document.getElementById('root')!).render(
+  <DiceProvider>
+    <RollButton />
+    <RollResult />
+  </DiceProvider>
+)
+```
+
+## State access and updates
+- `useState('key')`: narrow subscription to one top-level key. Returns `[value, setValue]`; `setValue` skips updates when the value is unchanged.
+- `useMapper(state => derived)`: derive values from one or many keys. The mapper is inspected to track which keys it reads; re-runs only when those change.
+- `setState(patch)`: merge-style update for multiple keys; use inside model class methods to express actions.
+- `reduce(draft => patch)`: compute the next state from a copy of the current state in one place.
+- Class methods are your actions: declare methods on the model that call `setState`/`reduce` and call them from components (or events) to keep mutation logic centralized.
+
+```ts
+// inside a component that has access to the model
+const [count, setCount] = model.useState('count') // read + update a single key
+
+const doubled = model.useMapper((s) => s.count * 2) // derive from count; runs only when count changes
+
+// inside the model class
+increment = () => this.setState({ count: this.state.count + 1 }) // merge update
+
+bumpBoth = () => this.setState({ count: this.state.count + 1, bonus: (this.state as any).bonus + 1 }) // multi-key patch
+
+boost = () => this.reduce((state) => ({ count: state.count + 10 })) // compute next state from a draft
+```

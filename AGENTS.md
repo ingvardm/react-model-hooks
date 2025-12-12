@@ -12,11 +12,12 @@
 - `yarn prepare`: Runs on install/publish to ensure artifacts are fresh.
 
 ## Architecture & Usage
-- Create a model by extending `Model<Events>` and declaring a `state` field.
+- Create a model by extending `Model<Events>` and pass initial state into `super` (ModelBase constructor now requires state).
   ```ts
   type Events = { 'clear-todos': undefined }
   class TodoModel extends Model<Events> {
     state = { todos: [], showDone: true }
+    constructor() { super({ todos: [], showDone: true }) }
     addTodo = (title: string) => this.setState({ todos: [...this.state.todos, { title, done: false, id: Date.now() }] })
   }
   export const { Provider: TodoProvider, useModel: useTodo } = createModel(TodoModel)
