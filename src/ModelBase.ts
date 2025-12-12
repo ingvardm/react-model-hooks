@@ -64,10 +64,12 @@ function updateEventListeners<
 }
 //#endregion utils
 
-export abstract class ModelBase<TEvents extends EventsScheme = EventsScheme> {
+export class ModelBase<TEvents extends EventsScheme = EventsScheme> {
 	protected valueSubscriptions: ValueSubscriptions<StatePlaceholder> = new Map()
 	protected stateSubscriptions: StateSubscriptions<StatePlaceholder> = new Set()
 	protected eventListeners: EventSubscriptions<EventsScheme> = new Map()
+
+	constructor(public state: StatePlaceholder) { }
 
 	onStateChange = (subscription: StateSubscription<typeof this['state']>) => {
 		this.stateSubscriptions.add(subscription)
@@ -141,6 +143,4 @@ export abstract class ModelBase<TEvents extends EventsScheme = EventsScheme> {
 	dispatch = <K extends keyof TEvents>(key: K, data?: TEvents[K] extends undefined ? never : TEvents[K]) => {
 		updateEventListeners(this.eventListeners, key as keyof EventsScheme, data)
 	}
-
-	abstract state: StatePlaceholder
 }

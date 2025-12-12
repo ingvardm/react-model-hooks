@@ -60,14 +60,14 @@ export function createModel<TEvents extends {} = {}, TModel extends Model<TEvent
 		return model
 	}
 
-	function create(state?: TModel["state"]) {
-		return new CName(state)
+	function useModelInstance(state?: TModel["state"]) {
+		return useMemo(() => new CName(state), [])
 	}
 
 	return {
 		Ctx,
-		create,
 		Provider,
 		useModel,
+		useModelInstance,
 	}
 }

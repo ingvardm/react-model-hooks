@@ -1,7 +1,6 @@
 import {
 	useCallback,
 	useEffect,
-	useMemo,
 	useRef,
 	useSyncExternalStore,
 } from 'react'
@@ -13,28 +12,25 @@ import {
 	StatePlaceholder,
 } from './common-types'
 
-// Create a shallow proxy to record which state keys a consumer reads.
-function makeProxy(
-	state: StatePlaceholder,
-	recordDependency: (k: string) => void,
+function computeDeps<S extends StatePlaceholder>(
+	func: (currentState: S, prevState: S) => void,
+	currentState: S,
+	prevState: S,
 ) {
-	const proxy = {}
+	const deps = new Set<keyof S>()
 
-	for (const [key, value] of Object.entries(state)) {
-		Object.defineProperty(proxy, key, {
-			enumerable: true,
-			configurable: false,
-			get() {
-				recordDependency(key)
-				return value
-			},
-		})
-	}
+	func(new Proxy(currentState, {
+		get: (t, k) => {
+			deps.add(k)
 
-	return proxy
+			return t[k]
+		},
+	}), prevState)
+
+	return Array.from(deps)
 }
 
-export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
+export class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 	useState = <K extends keyof typeof this['state']>(key: K): [typeof this['state'][K], (v: typeof this['state'][K]) => void] => {
 		const setValue = useCallback((v: typeof this['state'][K]) => {
 			const previousValue = (this.state as typeof this['state'])[key]
@@ -49,10 +45,14 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 			this.setState(nextStatePatch)
 		}, [key])
 
+		const subscribe = useCallback((onChange: () => void) => {
+			return this.onValueChange(key, onChange)
+		}, [key])
+
 		const getSnapshot = useCallback(() => this.state[key], [key])
 
 		const val: typeof this['state'][typeof key] = useSyncExternalStore(
-			(cb) => this.onValueChange(key, () => cb()),
+			subscribe,
 			getSnapshot,
 			getSnapshot,
 		)
@@ -62,46 +62,31 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 
 	useMapper = <T>(mapper: (state: typeof this['state'], prevState: typeof this['state']) => T) => {
 		const latestMapperRef = useRef(mapper)
-
 		const previousStateRef = useRef(this.state)
 		const derivedValueRef = useRef(mapper(this.state, this.state))
 
-		// Keep mapper ref fresh without re-subscribing.
-		useEffect(() => {
-			latestMapperRef.current = mapper
-		}, [mapper])
+		latestMapperRef.current = mapper
 
-		const dependencyKeysRef = useRef(new Set<string>())
+		const deps = computeDeps(
+			latestMapperRef.current,
+			this.state,
+			previousStateRef.current,
+		).sort()
 
-		const dependencyProxy = useMemo(() => {
-			return makeProxy(this.state, k => {
-				dependencyKeysRef.current.add(k)
-			})
-		}, [])
-
-		const dependencyKeys = useMemo(() => {
-			dependencyKeysRef.current = new Set()
-
-			// Execute mapper on the proxy to collect touched keys.
-			mapper(dependencyProxy, previousStateRef.current)
-
-			return Array.from(dependencyKeysRef.current)
-		}, [mapper])
+		const depsSig = deps.join("\u0000")
 
 		const getSnapshot = useCallback(() => {
 			if (previousStateRef.current !== this.state) {
 				derivedValueRef.current = latestMapperRef.current(this.state, previousStateRef.current)
 				previousStateRef.current = this.state
-
-				return derivedValueRef.current
 			}
 
 			return derivedValueRef.current
 		}, [])
 
 		const subscribe = useCallback((onChange: () => void) => {
-			return this.onValuesChange(dependencyKeys, onChange)
-		}, [dependencyKeys])
+			return this.onValuesChange(deps, onChange)
+		}, [depsSig])
 
 		return useSyncExternalStore<T>(
 			subscribe,
@@ -110,50 +95,11 @@ export abstract class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 		)
 	}
 
-	useStateEffect = (effect: (state: typeof this['state'], prevState: typeof this['state']) => unknown) => {
-		const latestEffectRef = useRef(effect)
-		const previousStateRef = useRef({ ...this.state })
-
-		const dependencyKeysRef = useRef(new Set<string>())
-
-		const dependencyProxy = useMemo(() => {
-			return makeProxy(this.state, k => {
-				dependencyKeysRef.current.add(k)
-			})
-		}, [])
-
-		// Keep effect ref current; subscription uses the ref.
-		useEffect(() => {
-			latestEffectRef.current = effect
-		}, [effect])
-
-		const dependencyKeys = useMemo(() => {
-			dependencyKeysRef.current = new Set()
-
-			// Execute effect once to discover which keys it reads.
-			effect(dependencyProxy, previousStateRef.current)
-
-			return Array.from(dependencyKeysRef.current)
-		}, [effect])
-
-		useEffect(() => this.onValuesChange(
-			dependencyKeys,
-			() => {
-				latestEffectRef.current(this.state, previousStateRef.current)
-				previousStateRef.current = { ...this.state }
-			}
-		), [dependencyKeys])
-	}
-
 	useEvent = <K extends keyof E>(ns: K, cb?: EventSubscription<E, K>) => {
 		useEffect(() => {
-			let removeListener = () => { }
+			if (!cb) return
 
-			if (!!cb) {
-				removeListener = this.onEvent(ns, cb)
-			}
-
-			return removeListener
+			return this.onEvent(ns, cb)
 		}, [ns, cb])
 
 		return (data?: E[K] extends undefined ? never : E[K]) => this.dispatch(ns, data)
