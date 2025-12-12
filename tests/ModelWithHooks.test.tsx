@@ -4,9 +4,15 @@ import { act, fireEvent, render } from '@testing-library/react'
 import { createModel, Model } from '../src'
 
 type Events = { ping: number }
+type HookState = { count: number; flag: boolean }
 
 class HookModel extends Model<Events> {
-  state = { count: 0, flag: false }
+  state: HookState
+
+  constructor(initial: HookState = { count: 0, flag: false }) {
+    super(initial)
+    this.state = initial
+  }
 }
 
 const { Provider, useModel } = createModel(HookModel)
@@ -87,38 +93,6 @@ describe('ModelWithHooks', () => {
     })
     expect(derivedRenders).toHaveBeenCalledTimes(2)
     expect(derivedRenders).toHaveBeenLastCalledWith(6)
-  })
-
-  it('useStateEffect runs for tracked keys and ignores unrelated updates', () => {
-    const model = new HookModel()
-    const effectSpy = jest.fn()
-
-    function Effectful() {
-      useModel().useStateEffect((state, prev) => {
-        effectSpy(state.count, prev.count)
-      })
-      return null
-    }
-
-    render(
-      <Provider value={model}>
-        <Effectful />
-      </Provider>
-    )
-
-    expect(effectSpy).toHaveBeenCalledTimes(1)
-    expect(effectSpy).toHaveBeenLastCalledWith(0, 0)
-
-    act(() => {
-      model.setState({ flag: true })
-    })
-    expect(effectSpy).toHaveBeenCalledTimes(1)
-
-    act(() => {
-      model.setState({ count: 1 })
-    })
-    expect(effectSpy).toHaveBeenCalledTimes(2)
-    expect(effectSpy).toHaveBeenLastCalledWith(1, 0)
   })
 
   it('useEvent subscribes and dispatches typed events', () => {

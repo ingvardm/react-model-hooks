@@ -3,8 +3,15 @@ import { act, fireEvent, render, waitFor } from '@testing-library/react'
 
 import { createModel, Model } from '../src'
 
+type CounterState = { count: number }
+
 class CounterModel extends Model {
-  state = { count: 0 }
+  state: CounterState
+
+  constructor(initial: CounterState = { count: 0 }) {
+    super(initial)
+    this.state = initial
+  }
 
   increment = () => this.setState({ count: this.state.count + 1 })
 }
@@ -13,10 +20,11 @@ describe('createModel', () => {
   it('creates a single model instance per Provider lifecycle', () => {
     class CountingModel extends Model {
       static instances = 0
-      state = { value: 0 }
+      state: { value: number }
 
-      constructor() {
-        super()
+      constructor(initial = { value: 0 }) {
+        super(initial)
+        this.state = initial
         CountingModel.instances += 1
       }
     }
@@ -107,25 +115,34 @@ describe('createModel', () => {
     await waitFor(() => expect(view.getByTestId('count').textContent).toBe('7'))
   })
 
-  it('exposes a create helper that forwards constructor arguments', () => {
+  it('useModelInstance creates a memoized instance with optional initial state', () => {
     class InitializableModel extends Model {
-      state = { value: 1 }
+      state: { value: number }
 
-      constructor(initialState?: { value: number }) {
-        super()
-        if (initialState) {
-          this.state = initialState
-        }
+      constructor(initialState = { value: 1 }) {
+        super(initialState)
+        this.state = initialState
       }
     }
 
-    const { create } = createModel(InitializableModel)
+    const { useModelInstance } = createModel(InitializableModel)
+    const seen: InitializableModel[] = []
 
-    const instanceWithState = create({ value: 42 })
-    expect(instanceWithState).toBeInstanceOf(InitializableModel)
-    expect(instanceWithState.state.value).toBe(42)
+    function Consumer({ value }: { value?: number }) {
+      const instance = useModelInstance(value !== undefined ? { value } : undefined)
+      seen.push(instance)
+      return <div data-testid="value">{instance.state.value}</div>
+    }
 
-    const defaultInstance = create()
-    expect(defaultInstance.state.value).toBe(1)
+    const view = render(
+      <Consumer />
+    )
+
+    expect(view.getByTestId('value').textContent).toBe('1')
+
+    view.rerender(<Consumer value={5} />)
+
+    expect(view.getByTestId('value').textContent).toBe('1')
+    expect(seen[0]).toBe(seen[1])
   })
 })

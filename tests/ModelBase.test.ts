@@ -1,7 +1,14 @@
 import { ModelBase } from '../src'
 
+type TestState = { a: number; b: number }
+
 class TestModel extends ModelBase<{ ping: number }> {
-  state = { a: 1, b: 2 }
+  state: TestState
+
+  constructor(initial: TestState = { a: 1, b: 2 }) {
+    super(initial)
+    this.state = initial
+  }
 }
 
 describe('ModelBase', () => {
