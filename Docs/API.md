@@ -1,54 +1,46 @@
 # API Reference
 
 ## Overview
-This library exposes a small, strongly‑typed API for stateful models and React hooks.
-Public surface:
-- `ModelBase<E>`: Core state and events engine.
-- `Model<E>`: React hook bindings on top of `ModelBase`.
-- `createModel(YourModel)`: Generates a Provider and `useModel` hook for a model class.
+Stateful models with typed subscriptions and React hooks.
+
+- `ModelBase<E>`: core state/event engine with precise subscriptions.
+- `Model<E>`: React bindings (`useState`, `useMapper`, `useEvent`, `useStateEffect`).
+- `createModel(YourModel)`: generates `Provider`, `useModel`, and a `create` factory.
 
 ## ModelBase<E>
-- `state`: abstract field you define in subclasses.
-- `setState(delta)`: Merge partial state and notify subscribers.
-- `reduce(reducer)`: Compute a partial update from current state and apply it.
-- `onStateChange(cb) -> unsubscribe`: Subscribe to whole‑state changes.
-- `onValueChange(key, cb) -> unsubscribe`: Subscribe to a specific key.
-- `onEvent(event, cb) -> unsubscribe`: Subscribe to a typed event.
-- `dispatch(event, payload?)`: Dispatch an event with optional payload.
+- `state`: abstract field defined in subclasses.
+- `setState(delta: Partial<this['state']>)`: shallow-merge; notifies with `(current, prev)` and per-key changes.
+- `reduce(reducer: (s: this['state']) => Partial<this['state']>)`: compute a partial update from a snapshot and apply it.
+- `onStateChange(cb: (current: this['state'], prev: this['state']) => void) => () => void`.
+- `onValueChange<K extends keyof this['state']>(key: K, cb: (current: this['state'][K], prev: this['state'][K]) => void) => () => void`.
+- `onValuesChange<K extends keyof this['state']>(keys: readonly K[], cb: (current: this['state'], prev: this['state']) => void) => () => void`.
+- `onEvent<K extends keyof E>(event: K, cb: (payload: E[K]) => void) => () => void`.
+- `dispatch<K extends keyof E>(event: K, payload?: E[K] extends undefined ? never : E[K])`.
 
 ## Model<E>
-- `useState(key) -> [value, setValue]`: React hook for a single key.
-- `useMapper(mapper) -> derived`: Derive a value from state with stable subscriptions.
-- `useEvent(event, cb?) -> dispatch`: Subscribe to an event (optional `cb`) and get a typed dispatcher.
+- `useState<K extends keyof this['state']>(key: K) => [this['state'][K], (v: this['state'][K]) => void]`
+  - Subscribes to a single key; setter is a no-op if `Object.is(prev, next)`.
+- `useMapper<T>(mapper: (state: this['state'], prev: this['state']) => T) => T`
+  - Traces accessed top‑level keys by running `mapper` against a Proxy once when `mapper` changes.
+  - Subscribes only to those keys; recomputes with `(state, prev)` and returns a cached snapshot per render to satisfy `useSyncExternalStore`.
+- `useStateEffect(effect: (state: this['state'], prev: this['state']) => unknown)`
+  - Traces accessed keys once; re-runs only when any of them change.
+- `useEvent<K extends keyof E>(event: K, cb?: (payload: E[K]) => void) => (payload?: E[K]) => void`
+  - Optional subscription + typed dispatcher.
 
 ## createModel(YourModel)
-Create a context for a model class and return wiring helpers.
-- Returns: `{ Ctx, Provider, useModel }`
+Creates a typed React context for your model class.
+
+Returns: `{ Ctx, create, Provider, useModel }`
+- `useModel(): InstanceType<typeof YourModel>` — access the instance from components.
+- `create(initialState?)`: factory to build a new instance (if supported by your constructor).
 - `Provider` props:
-  - `value?`: Prebuilt instance to inject (optional).
-  - `state?`: External state snapshot (optional, for controlled setups).
-  - `onChange?(state)`: Observe state changes (use with `state`).
+  - `value?`: prebuilt instance to inject (optional; enables external control).
+  - `state?`: external state snapshot (controlled mode; optional).
+  - `onChange?(current, prev)`: observe state changes (pair with `state`).
 
-Example
-```ts
-import { Model, createModel } from 'react-better-model'
-
-type AppEvents = { 'clear-todos': undefined }
-
-class TaskListModel extends Model<AppEvents> {
-  state = { tasks: [] as { id:number; title:string; done:boolean }[], showCompleted: true }
-}
-
-export const { Provider: TaskListProvider, useModel: useTaskList } = createModel(TaskListModel)
-```
-
-Usage in components
-```tsx
-function TaskList() {
-  const model = useTaskList()
-  const visible = model.useMapper(s => s.showCompleted ? s.tasks : s.tasks.filter(t => !t.done))
-  const [showCompleted, setShowCompleted] = model.useState('showCompleted')
-  const clearAll = model.useEvent('clear-todos')
-  return <button onClick={() => clearAll()}>Clear</button>
-}
-```
+## Performance Tips
+- Update state immutably: replace top‑level keys to ensure change detection works.
+- Prefer `useState('key')` for single values; it’s the narrowest subscription.
+- Keep mappers pure and fast; avoid allocating from unrelated keys.
+- For many dependent keys, consider composing multiple `useState` calls with `useMemo` in the component.
