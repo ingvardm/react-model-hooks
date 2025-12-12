@@ -20,7 +20,8 @@
   ],
   "scripts": {
     "build": "npx tsc",
-    "prepare": "yarn build"
+    "prepare": "yarn build",
+    "test": "npx jest --runInBand"
   },
   "author": "Igor Poughtach <ingvardm@gmail.com>",
   "license": "Unlicense",

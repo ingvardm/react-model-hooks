@@ -1,0 +1,153 @@
+import React from 'react'
+import { act, fireEvent, render } from '@testing-library/react'
+
+import { createModel, Model } from '../src'
+
+type Events = { ping: number }
+
+class HookModel extends Model<Events> {
+  state = { count: 0, flag: false }
+}
+
+const { Provider, useModel } = createModel(HookModel)
+
+describe('ModelWithHooks', () => {
+  it('useState subscribes to one key and skips updates when the value is unchanged', () => {
+    const model = new HookModel()
+    const countRenders = jest.fn()
+    const flagRenders = jest.fn()
+
+    function CountView() {
+      const [count, setCount] = useModel().useState('count')
+      countRenders(count)
+      return (
+        <button data-testid="noop" onClick={() => setCount(count)}>
+          count: {count}
+        </button>
+      )
+    }
+
+    function FlagView() {
+      const [flag] = useModel().useState('flag')
+      flagRenders(flag)
+      return <div data-testid="flag">{String(flag)}</div>
+    }
+
+    const view = render(
+      <Provider value={model}>
+        <CountView />
+        <FlagView />
+      </Provider>
+    )
+
+    expect(countRenders).toHaveBeenCalledTimes(1)
+    expect(flagRenders).toHaveBeenCalledTimes(1)
+
+    fireEvent.click(view.getByTestId('noop'))
+    expect(countRenders).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      model.setState({ flag: true })
+    })
+    expect(flagRenders).toHaveBeenCalledTimes(2)
+    expect(countRenders).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      model.setState({ count: 5 })
+    })
+    expect(countRenders).toHaveBeenCalledTimes(2)
+  })
+
+  it('useMapper recomputes only when mapped keys change', () => {
+    const model = new HookModel()
+    const derivedRenders = jest.fn()
+
+    function Derived() {
+      const doubled = useModel().useMapper((state) => state.count * 2)
+      derivedRenders(doubled)
+      return <div data-testid="derived">{doubled}</div>
+    }
+
+    render(
+      <Provider value={model}>
+        <Derived />
+      </Provider>
+    )
+
+    expect(derivedRenders).toHaveBeenCalledTimes(1)
+    expect(derivedRenders).toHaveBeenLastCalledWith(0)
+
+    act(() => {
+      model.setState({ flag: true })
+    })
+    expect(derivedRenders).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      model.setState({ count: 3 })
+    })
+    expect(derivedRenders).toHaveBeenCalledTimes(2)
+    expect(derivedRenders).toHaveBeenLastCalledWith(6)
+  })
+
+  it('useStateEffect runs for tracked keys and ignores unrelated updates', () => {
+    const model = new HookModel()
+    const effectSpy = jest.fn()
+
+    function Effectful() {
+      useModel().useStateEffect((state, prev) => {
+        effectSpy(state.count, prev.count)
+      })
+      return null
+    }
+
+    render(
+      <Provider value={model}>
+        <Effectful />
+      </Provider>
+    )
+
+    expect(effectSpy).toHaveBeenCalledTimes(1)
+    expect(effectSpy).toHaveBeenLastCalledWith(0, 0)
+
+    act(() => {
+      model.setState({ flag: true })
+    })
+    expect(effectSpy).toHaveBeenCalledTimes(1)
+
+    act(() => {
+      model.setState({ count: 1 })
+    })
+    expect(effectSpy).toHaveBeenCalledTimes(2)
+    expect(effectSpy).toHaveBeenLastCalledWith(1, 0)
+  })
+
+  it('useEvent subscribes and dispatches typed events', () => {
+    const onPing = jest.fn()
+
+    function Listener() {
+      const dispatch = useModel().useEvent('ping', onPing)
+      return (
+        <button data-testid="ping" onClick={() => dispatch(9)}>
+          ping
+        </button>
+      )
+    }
+
+    const view = render(
+      <Provider>
+        <Listener />
+      </Provider>
+    )
+
+    fireEvent.click(view.getByTestId('ping'))
+    expect(onPing).toHaveBeenCalledTimes(1)
+    expect(onPing).toHaveBeenCalledWith(9)
+
+    view.unmount()
+
+    act(() => {
+      // Subscription should be cleaned up on unmount.
+      view.unmount()
+    })
+  })
+})
