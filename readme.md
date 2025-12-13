@@ -1,6 +1,10 @@
 # React Better Model
 
-Tiny, class-based models for React. Stay in TypeScript, keep state out of components, bootstrap with a single `createModel` call, and wire state/derived values/events with a handful of hooks.
+Tiny, class-based models for React with a ruthless focus on simplicity: define a class, call `createModel`, and use a handful of hooks. Everything stays TypeScript-friendly and lets you extend behavior through your own model methods and events.
+
+- API reference: see [Docs/API.md](Docs/API.md)
+- Example app: Todo demo at https://github.com/ingvardm/react-better-model-todo-example
+- TL;DR: see [Docs/TLDR.md](Docs/TLDR.md)
 
 ## Installation
 ```bash
