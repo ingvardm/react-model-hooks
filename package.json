@@ -16,7 +16,8 @@
     "url": "git@github.com:ingvardm/react-model-hooks.git"
   },
   "files": [
-    "lib"
+    "lib",
+    "AGENTS.md"
   ],
   "scripts": {
     "build": "npx tsc",
