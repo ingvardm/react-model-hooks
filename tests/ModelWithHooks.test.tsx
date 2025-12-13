@@ -95,6 +95,39 @@ describe('ModelWithHooks', () => {
     expect(derivedRenders).toHaveBeenLastCalledWith(6)
   })
 
+  it('useMapper re-tracks dependencies when mapper function changes', () => {
+    const model = new HookModel()
+    const renders: Array<string | number> = []
+
+    function Derived({ keys }: { keys: Array<keyof HookState> }) {
+      const mapper = React.useCallback(
+        (state: HookState) => keys.map(k => state[k]).join(':'),
+        [keys]
+      )
+      const value = useModel().useMapper(mapper)
+      renders.push(value)
+      return <div data-testid="derived">{value}</div>
+    }
+
+    const view = render(
+      <Provider value={model}>
+        <Derived keys={['count']} />
+      </Provider>
+    )
+
+    act(() => model.setState({ count: 1 }))
+    expect(renders.pop()).toBe('1')
+
+    view.rerender(
+      <Provider value={model}>
+        <Derived keys={['flag']} />
+      </Provider>
+    )
+
+    act(() => model.setState({ flag: true }))
+    expect(renders.pop()).toBe('true')
+  })
+
   it('useEvent subscribes and dispatches typed events', () => {
     const onPing = jest.fn()
 
