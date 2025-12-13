@@ -136,7 +136,7 @@ class ChatModel extends Model<ChatEvents> {
   }
 
   addMessage = (text: string) => {
-    const msg = { id: crypto.randomUUID(), text }
+    const msg = { id: '1234', text }
     this.setState({ messages: [...this.state.messages, msg] })
     this.dispatch('message:new', msg)
   }

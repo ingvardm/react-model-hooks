@@ -8,6 +8,7 @@ import {
 	ValueSubscription,
 	ValueSubscriptions,
 } from "./common-types"
+import { shallowEqual } from "./utils"
 
 //#region utils
 function updateSingleKeySubscriber<
@@ -113,7 +114,13 @@ export class ModelBase<TEvents extends EventsScheme = EventsScheme> {
 
 	setState = (delta: Partial<StatePlaceholder<typeof this['state']>>) => {
 		const prevState = { ...this.state }
-		this.state = { ...this.state, ...delta }
+		const nextState = { ...this.state, ...delta }
+
+		if (shallowEqual(prevState, nextState)) {
+			return
+		}
+
+		this.state = nextState
 
 		updateStateChangeSubscribers(this.stateSubscriptions, this.state, prevState)
 		updateKeySubscribers(this.valueSubscriptions, delta, prevState)

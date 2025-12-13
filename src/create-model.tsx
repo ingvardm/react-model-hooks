@@ -30,10 +30,10 @@ export function createModel<TEvents extends {} = {}, TModel extends Model<TEvent
 		const model = useMemo(() => value || new CName(), [])
 
 		useEffect(() => {
-			if (state !== undefined) {
+			if (state !== undefined && state !== model.state) {
 				model.setState(state)
 			}
-		}, [state])
+		}, [state, model])
 
 		useEffect(() => {
 			let listener = () => { }
