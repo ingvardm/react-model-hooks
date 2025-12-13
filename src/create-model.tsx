@@ -19,7 +19,7 @@ export type ModelProviderProps<TEvents extends EventsScheme, TModel extends Mode
 }
 
 export function createModel<TEvents extends {} = {}, TModel extends Model<TEvents> = Model<TEvents>>(CName: Ctor<TEvents, TModel>) {
-	const Ctx = createContext<TModel>({} as TModel)
+	const Ctx = createContext<TModel | null>(null)
 
 	function Provider({
 		value,
@@ -30,7 +30,7 @@ export function createModel<TEvents extends {} = {}, TModel extends Model<TEvent
 		const model = useMemo(() => value || new CName(), [])
 
 		useEffect(() => {
-			if (state) {
+			if (state !== undefined) {
 				model.setState(state)
 			}
 		}, [state])
