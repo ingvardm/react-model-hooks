@@ -1,19 +1,25 @@
 # Quick Start
 
-Install
-- `npm i react-better-model` or `yarn add react-better-model`.
+## Install
+```bash
+npm i react-better-model
+# or
+yarn add react-better-model
+# or
+pnpm add react-better-model
+```
 
-Define a model
+## Define a model
 ```ts
 import { Model, createModel } from 'react-better-model'
 
-// Optional if you want to use events:
 type AppEvents = { 'clear-todos': undefined }
-
 type Task = { id: number; title: string; description: string; done: boolean }
 
 class TaskListModel extends Model<AppEvents> {
-  state = { tasks: [] as Task[], showCompleted: true }
+  constructor() {
+    super({ tasks: [] as Task[], showCompleted: true })
+  }
 
   addTask = (title: string, description = '') => {
     const next = [
@@ -22,15 +28,20 @@ class TaskListModel extends Model<AppEvents> {
     ]
     this.setState({ tasks: next })
   }
+
+  toggleShowCompleted = () => {
+    this.setState({ showCompleted: !this.state.showCompleted })
+  }
 }
 
 export const {
   Provider: TaskListProvider,
   useModel: useTaskList,
+  useModelInstance: useTaskListInstance,
 } = createModel(TaskListModel)
 ```
 
-Use in components
+## Use in components
 ```tsx
 function TaskList() {
   const model = useTaskList()
@@ -49,12 +60,30 @@ function TaskList() {
 }
 ```
 
-Provide the model
+## Provide the model
 ```tsx
+import React, { useMemo } from 'react'
+import { createRoot } from 'react-dom/client'
+
 function App() {
-  // Optional: pass a prebuilt instance to control it outside React
+  // Option 1: prebuild an instance for external control/DI
   const instance = useMemo(() => new TaskListModel(), [])
   instance.useEvent('clear-todos', () => instance.setState({ tasks: [] }))
+
+  return (
+    <TaskListProvider value={instance}>
+      <TaskList />
+    </TaskListProvider>
+  )
+}
+
+createRoot(document.getElementById('root')!).render(<App />)
+```
+
+```tsx
+// Option 2: build inside with useModelInstance (memoized)
+function AppInline() {
+  const instance = useTaskListInstance()
   return (
     <TaskListProvider value={instance}>
       <TaskList />
@@ -63,23 +92,20 @@ function App() {
 }
 ```
 
-Notes
-- `useMapper` records which top‑level keys your selector reads and only recomputes when they change. Update state immutably (replace top‑level keys) for accurate detection.
-
-## Inline Models (Portals / Embedded Widgets)
-When you need a small, self‑contained state scope colocated with rendered content (e.g., portals), define a model inline without a named class.
-
+## Inline models (portals/embedded widgets)
+Define a model inline when you need a small, scoped state slice next to where you render it.
 ```ts
 import { createModel, Model } from 'react-better-model'
 
 export const { Provider: InlineProvider, useModel: useInline } = createModel(
   class InlineModel extends Model {
-    state = { counter: 0 }
+    constructor() {
+      super({ counter: 0 })
+    }
   }
 )
 ```
 
-Use it where you render:
 ```tsx
 function InlineWidget() {
   const model = useInline()
@@ -95,3 +121,7 @@ function PortalSurface() {
   )
 }
 ```
+
+## Notes
+- `useMapper` tracks which top-level keys your selector touches and only recomputes when they change. Update state immutably (replace top-level keys) for accurate detection.
+- Prefer methods on the model (like `addTask`) instead of mutating `state` directly; it keeps updates typed and centralized.
