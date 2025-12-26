@@ -13,7 +13,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git@github.com:ingvardm/react-model-hooks.git"
+    "url": "git+ssh://git@github.com/ingvardm/react-model-hooks.git"
   },
   "files": [
     "lib",
