@@ -24,7 +24,7 @@
     "prepare": "yarn build",
     "test": "npx jest --runInBand"
   },
-  "author": "Igor Poughtach <ingvardm@gmail.com>",
+  "author": "Igor Pougatch <ingvardm@gmail.com>",
   "license": "Unlicense",
   "peerDependencies": {
     "react": "^18.0.0"
