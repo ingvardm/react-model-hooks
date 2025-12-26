@@ -6,29 +6,8 @@ import {
 } from 'react'
 
 import { ModelBase } from './ModelBase'
-import {
-	EventSubscription,
-	EventsScheme,
-	StatePlaceholder,
-} from './common-types'
-
-function computeDeps<S extends StatePlaceholder>(
-	func: (currentState: S, prevState: S) => void,
-	currentState: S,
-	prevState: S,
-) {
-	const deps = new Set<keyof S>()
-
-	func(new Proxy(currentState, {
-		get: (t, k) => {
-			deps.add(k)
-
-			return t[k]
-		},
-	}), prevState)
-
-	return Array.from(deps)
-}
+import { EventSubscription, EventsScheme } from './common-types'
+import { computeDeps } from './utils'
 
 export class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 	useState = <K extends keyof typeof this['state']>(key: K): [typeof this['state'][K], (v: typeof this['state'][K]) => void] => {
@@ -77,7 +56,11 @@ export class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 
 		const getSnapshot = useCallback(() => {
 			if (previousStateRef.current !== this.state) {
-				derivedValueRef.current = latestMapperRef.current(this.state, previousStateRef.current)
+				derivedValueRef.current = latestMapperRef.current(
+					this.state,
+					previousStateRef.current,
+				)
+
 				previousStateRef.current = this.state
 			}
 
