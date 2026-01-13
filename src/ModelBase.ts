@@ -52,7 +52,7 @@ function updateStateChangeSubscribers<S extends StatePlaceholder>(
 	currentState: S,
 	prevState: S,
 ) {
-	subs.forEach(subscription => subscription(currentState, prevState))
+	[...subs].forEach(subscription => subscription(currentState, prevState))
 }
 
 

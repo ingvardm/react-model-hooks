@@ -26,14 +26,14 @@ export function shallowEqual<S extends Record<string, unknown>>(a: S, b: S) {
 	return true
 }
 
-export function computeDeps<S extends StatePlaceholder>(
-	func: (currentState: S, prevState: S) => void,
+export function computeDeps<T, S extends StatePlaceholder>(
+	func: (currentState: S, prevState: S) => T,
 	currentState: S,
 	prevState: S,
 ) {
 	const deps = new Set<keyof S>()
 
-	func(new Proxy(currentState, {
+	const result = func(new Proxy(currentState, {
 		get: (t, k) => {
 			deps.add(k)
 
@@ -41,5 +41,8 @@ export function computeDeps<S extends StatePlaceholder>(
 		},
 	}), prevState)
 
-	return Array.from(deps)
+	return {
+		result: result as T,
+		deps: Array.from(deps),
+	}
 }

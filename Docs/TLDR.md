@@ -34,7 +34,7 @@ export const {
 // component.tsx
 const counter = useCounterModel()
 const [n, setN] = counter.useState('n') // narrow subscription + setter
-const doubled = counter.useMapper(s => s.n * 2) // derived; subscribes to accessed keys
+const doubled = counter.useDerived(s => s.n * 2) // derived; subscribes to accessed keys
 const dispatchTick = counter.useEvent('tick') // dispatcher
 counter.useEvent('tick', onTick) // or pass cb to subscribe
 
@@ -46,11 +46,11 @@ const instance = useCounterModelInstance()
 ```
 
 - `useState(key)`: single-key subscription, setter is a no-op if `Object.is(prev,next)`.
-- `useMapper(mapper)`: tracks touched keys once per mapper ref; recomputes only when they change.
+- `useDerived(mapper, mapperDeps?)`: tracks accessed keys dynamically via Proxy; re-tracks on each update so conditional access works.
 - `useEvent(name, cb?)`: optional subscribe; always returns a dispatcher.
 - `setState(patch)`: shallow merge; notifies state + key subscribers.
 - `reduce(fn)`: compute patch from a snapshot; calls `setState`. Example: `reduce(s => ({ n: s.n + 10 }))`.
 - Providers: use `value` for DI/singletons or `useModelInstance` to build one locally.
 - Global models: instantiate once and call hooks directly (no Provider).
 
-(Todo example app)[https://github.com/ingvardm/react-better-model-todo-example]
+[Todo example app](https://github.com/ingvardm/react-better-model-todo-example)

@@ -2,9 +2,59 @@
 
 Tiny, class-based models for React with a ruthless focus on simplicity: define a class, call `createModel`, and use a handful of hooks. Everything stays TypeScript-friendly and lets you extend behavior through your own model methods and events.
 
+<details>
+<summary><strong>TL;DR</strong></summary>
+
+```bash
+npm i react-better-model
+```
+
+```ts
+// model.ts
+import { Model, createModel } from 'react-better-model'
+
+class Counter extends Model {
+  constructor() {
+    super({ n: 0 })
+  }
+
+  inc = () => this.setState({ n: this.state.n + 1 })
+}
+
+export const {
+  Provider: CounterProvider,
+  useModel: useCounterModel,
+  useModelInstance: useCounterModelInstance,
+} = createModel(Counter)
+```
+
+```tsx
+// component.tsx
+const counter = useCounterModel()
+const [n, setN] = counter.useState('n') // narrow subscription + setter
+const doubled = counter.useDerived(s => s.n * 2) // derived; subscribes to accessed keys
+const dispatchTick = counter.useEvent('tick') // dispatcher
+counter.useEvent('tick', onTick) // or pass cb to subscribe
+
+// Provider usage (external control optional)
+const instance = useCounterModelInstance()
+<CounterProvider value={instance}>
+  <SomeChild />
+</CounterProvider>
+```
+
+- `useState(key)`: single-key subscription, setter is a no-op if `Object.is(prev,next)`.
+- `useDerived(mapper, mapperDeps?)`: tracks accessed keys dynamically via Proxy; re-tracks on each update so conditional access works.
+- `useEvent(name, cb?)`: optional subscribe; always returns a dispatcher.
+- `setState(patch)`: shallow merge; notifies state + key subscribers.
+- `reduce(fn)`: compute patch from a snapshot; calls `setState`. Example: `reduce(s => ({ n: s.n + 10 }))`.
+- Providers: use `value` for DI/singletons or `useModelInstance` to build one locally.
+- Global models: instantiate once and call hooks directly (no Provider).
+
+</details>
+
 - API reference: see [Docs/API.md](Docs/API.md)
-- Example app: Todo demo at https://github.com/ingvardm/react-better-model-todo-example
-- TL;DR: see [Docs/TLDR.md](Docs/TLDR.md)
+- Example app: [Todo demo](https://github.com/ingvardm/react-better-model-todo-example)
 
 ## Installation
 ```bash
@@ -85,7 +135,7 @@ createRoot(document.getElementById('root')!).render(
 
 ## State access and updates
 - `useState('key')`: narrow subscription to one top-level key. Returns `[value, setValue]`; `setValue` skips updates when the value is unchanged.
-- `useMapper(state => derived)`: derive values from one or many keys. The mapper is inspected to track which keys it reads; re-runs only when those change.
+- `useDerived(mapper, mapperDeps?)`: derive values from state. Dependencies are tracked automatically via Proxy - only re-runs when accessed keys change. Dependencies are re-tracked on each update, so conditional access works correctly.
 - `setState(patch)`: merge-style update for multiple keys; use inside model class methods to express actions.
 - `reduce(draft => patch)`: compute the next state from a copy of the current state in one place.
 - Class methods are your actions: declare methods on the model that call `setState`/`reduce` and call them from components (or events) to keep mutation logic centralized.
@@ -94,7 +144,10 @@ createRoot(document.getElementById('root')!).render(
 // inside a component that has access to the model
 const [count, setCount] = model.useState('count') // read + update a single key
 
-const doubled = model.useMapper((s) => s.count * 2) // derive from count; runs only when count changes
+const doubled = model.useDerived((s) => s.count * 2) // derive from count; runs only when count changes
+
+// conditional dependencies are tracked dynamically
+const display = model.useDerived((s) => s.showCount ? s.count : 'hidden')
 
 // inside the model class
 increment = () => this.setState({ count: this.state.count + 1 }) // merge update
@@ -220,7 +273,7 @@ You still get typed hooks, but you skip a Provider when the model truly lives at
 
 ## Patterns & pitfalls
 - Prefer immutable top-level updates: replace keys instead of mutating nested structures so subscriptions fire. e.g., `setState({ todos: todos.map(...) })`.
-- Keep derived data out of state: compute with `useMapper` or on the fly in model methods.
+- Keep derived data out of state: compute with `useDerived` or on the fly in model methods.
 - Class methods are your API surface: call them from components instead of mutating state directly.
 - Scope models with Providers: make multiple instances for different parts of the tree instead of sharing global singletons.
 - Event names should be literal and typed (e.g., `'clear-todos'`), and payloads should be minimal.

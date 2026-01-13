@@ -4,7 +4,7 @@ Stateful models with typed subscriptions and React hooks.
 
 ## Overview
 - `ModelBase<E>`: minimal state/event engine with granular subscriptions.
-- `Model<E>`: React hooks on top of `ModelBase` (`useState`, `useMapper`, `useEvent`).
+- `Model<E>`: React hooks on top of `ModelBase` (`useState`, `useDerived`, `useEvent`).
 - `createModel(YourModel)`: builds a context + Provider + hooks for your model class.
 
 ## ModelBase<E>
@@ -21,8 +21,11 @@ Stateful models with typed subscriptions and React hooks.
 ## Model<E>
 - `useState<K extends keyof this['state']>(key: K) => [this['state'][K], (v: this['state'][K]) => void]`
   - Narrow subscription to one key; setter is a no-op if `Object.is(prev, next)`.
-- `useMapper<T>(mapper: (state: this['state'], prev: this['state']) => T) => T`
-  - Detects which top-level keys `mapper` reads; subscribes only to those keys; recomputes `(state, prev)` and memoizes the result for `useSyncExternalStore`.
+- `useDerived<T>(mapper: (state: this['state'], prev: this['state']) => T, mapperDeps?: any[]) => T`
+  - Derives values from state with automatic dependency tracking via Proxy.
+  - Only re-runs when accessed keys change.
+  - Dependencies are re-tracked on each state update, so conditional access (e.g., `state.flag ? state.a : state.b`) works correctly.
+  - Pass `mapperDeps` when the mapper function itself changes (e.g., `[mapper]` if mapper is created with `useCallback`).
 - `useEvent<K extends keyof E>(event: K, cb?: (payload: E[K]) => void) => (payload?: E[K]) => void`
   - Optional subscription; always returns a typed dispatcher.
 
@@ -39,6 +42,6 @@ Returns: `{ Ctx, Provider, useModel, useModelInstance }`
 
 ## Performance tips
 - Update state immutably: replace top-level keys to ensure change detection works.
-- Prefer `useState('key')` for single values; use `useMapper` for derived values from multiple keys.
+- Prefer `useState('key')` for single values; use `useDerived` for derived values from multiple keys.
 - Keep mappers pure and fast; avoid allocating from unrelated keys.
 - For many dependent keys, compose multiple `useState` calls with `useMemo` in the component.

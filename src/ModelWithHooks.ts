@@ -1,12 +1,14 @@
 import {
 	useCallback,
 	useEffect,
+	useMemo,
 	useRef,
+	useState,
 	useSyncExternalStore,
 } from 'react'
 
 import { ModelBase } from './ModelBase'
-import { EventSubscription, EventsScheme } from './common-types'
+import { EventSubscription, EventsScheme, StateSubscription } from './common-types'
 import { computeDeps } from './utils'
 
 export class Model<E extends EventsScheme = {}> extends ModelBase<E> {
@@ -39,43 +41,53 @@ export class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 		return [val, setValue]
 	}
 
-	useMapper = <T>(mapper: (state: typeof this['state'], prevState: typeof this['state']) => T) => {
+	useDerived = <T>(
+		mapper: (state: typeof this['state'], prevState: typeof this['state']) => T,
+		mapperDeps: any[] = [],
+	) => {
 		const latestMapperRef = useRef(mapper)
-		const previousStateRef = useRef(this.state)
-		const derivedValueRef = useRef(mapper(this.state, this.state))
-
 		latestMapperRef.current = mapper
 
-		const deps = computeDeps(
-			latestMapperRef.current,
-			this.state,
-			previousStateRef.current,
-		).sort()
+		const { result: derivedValue, deps: stateDeps } = useMemo(() => {
+			return computeDeps(
+				latestMapperRef.current,
+				this.state,
+				this.state,
+			)
+		}, mapperDeps)
 
-		const depsSig = deps.join("\u0000")
+		const initialValue = useRef(derivedValue).current
 
-		const getSnapshot = useCallback(() => {
-			if (previousStateRef.current !== this.state) {
-				derivedValueRef.current = latestMapperRef.current(
-					this.state,
-					previousStateRef.current,
-				)
+		const [val, setVal] = useState<T>(derivedValue)
 
-				previousStateRef.current = this.state
-			}
+		const unsubscribe = useRef(() => { })
 
-			return derivedValueRef.current
+		const reSubscribe = useCallback((deps: (keyof this["state"])[]) => {
+			unsubscribe.current()
+
+			unsubscribe.current = this.onValuesChange(deps, updateValue)
 		}, [])
 
-		const subscribe = useCallback((onChange: () => void) => {
-			return this.onValuesChange(deps, onChange)
-		}, [depsSig])
+		const updateValue = useCallback<StateSubscription<this["state"]>>((next, prev) => {
+			const { result, deps } = computeDeps(latestMapperRef.current, next, prev)
 
-		return useSyncExternalStore<T>(
-			subscribe,
-			getSnapshot,
-			getSnapshot,
-		)
+			setVal(result)
+			reSubscribe(deps)
+		}, [])
+
+		useEffect(() => {
+			if (initialValue !== derivedValue) {
+				setVal(derivedValue)
+			}
+
+			reSubscribe(stateDeps)
+
+			return () => {
+				unsubscribe.current()
+			}
+		}, [derivedValue, stateDeps])
+
+		return val
 	}
 
 	useEvent = <K extends keyof E>(ns: K, cb?: EventSubscription<E, K>) => {
