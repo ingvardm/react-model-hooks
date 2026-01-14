@@ -21,7 +21,9 @@
 ## Architecture & Usage
 
 ### Core Classes
-- **`ModelBase<TEvents>`**: Base class with subscription-based state management (no React dependency).
+- **`ModelBase<TState, TEvents>`**: Base class with subscription-based state management (no React dependency).
+  - `TState`: Required type parameter for state shape.
+  - `TEvents`: Optional type parameter for events (defaults to `EventsScheme`).
   - `state`: The current state object.
   - `setState(patch)`: Merge-style update that notifies subscribers.
   - `reduce(fn)`: Compute next state from a copy of current state.
@@ -31,18 +33,22 @@
   - `onEvent(key, cb)`: Subscribe to a typed event.
   - `dispatch(key, data)`: Emit a typed event.
 
-- **`Model<TEvents>`**: Extends `ModelBase` with React hooks.
+- **`Model<TState, TEvents>`**: Extends `ModelBase` with React hooks.
+  - `TState`: Required type parameter for state shape.
+  - `TEvents`: Optional type parameter for events.
   - `useState(key)`: Returns `[value, setValue]` tuple with `useSyncExternalStore`.
   - `useDerived(mapper, deps?)`: Derive values from state with automatic dependency tracking via Proxy.
-  - `useEvent(key, cb?)`: Subscribe to events and return a dispatch function.
+  - `useEvent(key, cb?)`: Subscribe to events and return a memoized dispatch function.
 
 ### Creating a Model
 ```ts
 import { Model, createModel } from 'react-better-model'
 
-type Events = { 'clear-todos': undefined }
+type Todo = { title: string; done: boolean; id: number }
+type TodoState = { todos: Todo[]; showDone: boolean }
+type TodoEvents = { 'clear-todos': undefined }
 
-class TodoModel extends Model<Events> {
+class TodoModel extends Model<TodoState, TodoEvents> {
   constructor() {
     super({ todos: [], showDone: true })
   }

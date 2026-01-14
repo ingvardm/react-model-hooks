@@ -13,11 +13,11 @@ pnpm add react-better-model
 // model.ts
 import { Model, createModel } from 'react-better-model'
 
-class Counter extends Model {
+type CounterState = { n: number }
+
+class Counter extends Model<CounterState> {
   constructor() {
-    super({
-      n: 0,
-    })
+    super({ n: 0 })
   }
 
   inc = () => this.setState({ n: this.state.n + 1 })

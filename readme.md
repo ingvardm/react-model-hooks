@@ -13,7 +13,9 @@ npm i react-better-model
 // model.ts
 import { Model, createModel } from 'react-better-model'
 
-class Counter extends Model {
+type CounterState = { n: number }
+
+class Counter extends Model<CounterState> {
   constructor() {
     super({ n: 0 })
   }
@@ -72,7 +74,9 @@ pnpm add react-better-model
 // DiceModel.ts
 import { Model, createModel } from 'react-better-model'
 
-class DiceModel extends Model {
+type DiceState = { lastRoll: number }
+
+class DiceModel extends Model<DiceState> {
   constructor() {
     super({ lastRoll: 1 })
   }
@@ -185,11 +189,13 @@ Declare your events on the model type, dispatch them from class methods, and sub
 // ChatModel.ts
 import { Model, createModel } from 'react-better-model'
 
-type ChatEvents = { 'message:new': { id: string; text: string } }
+type Message = { id: string; text: string }
+type ChatState = { messages: Message[] }
+type ChatEvents = { 'message:new': Message }
 
-class ChatModel extends Model<ChatEvents> {
+class ChatModel extends Model<ChatState, ChatEvents> {
   constructor() {
-    super({ messages: [] as { id: string; text: string }[] })
+    super({ messages: [] })
   }
 
   addMessage = (text: string) => {
@@ -248,12 +254,15 @@ Some state is truly global (e.g., auth/session). You can instantiate a model onc
 // authModel.ts
 import { Model } from 'react-better-model'
 
-class AuthModel extends Model {
+type User = { id: string; name: string }
+type AuthState = { user: User | null }
+
+class AuthModel extends Model<AuthState> {
   constructor() {
-    super({ user: null as null | { id: string; name: string } })
+    super({ user: null })
   }
 
-  setUser = (user: AuthModel['state']['user']) => this.setState({ user })
+  setUser = (user: User | null) => this.setState({ user })
 }
 
 export const authModel = new AuthModel()

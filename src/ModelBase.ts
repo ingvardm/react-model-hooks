@@ -65,14 +65,17 @@ function updateEventListeners<
 }
 //#endregion utils
 
-export class ModelBase<TEvents extends EventsScheme = EventsScheme> {
-	protected valueSubscriptions: ValueSubscriptions<StatePlaceholder> = new Map()
-	protected stateSubscriptions: StateSubscriptions<StatePlaceholder> = new Set()
+export class ModelBase<
+	TState extends StatePlaceholder,
+	TEvents extends EventsScheme = EventsScheme
+> {
+	protected valueSubscriptions: ValueSubscriptions<TState> = new Map()
+	protected stateSubscriptions: StateSubscriptions<TState> = new Set()
 	protected eventListeners: EventSubscriptions<EventsScheme> = new Map()
 
-	constructor(public state: StatePlaceholder) { }
+	constructor(public state: TState) { }
 
-	onStateChange = (subscription: StateSubscription<typeof this['state']>) => {
+	onStateChange = (subscription: StateSubscription<TState>) => {
 		this.stateSubscriptions.add(subscription)
 
 		return () => {
@@ -112,9 +115,9 @@ export class ModelBase<TEvents extends EventsScheme = EventsScheme> {
 		})
 	}
 
-	setState = (delta: Partial<StatePlaceholder<typeof this['state']>>) => {
-		const prevState = { ...this.state }
-		const nextState = { ...this.state, ...delta }
+	setState = (delta: Partial<TState>) => {
+		const prevState = this.state
+		const nextState = { ...prevState, ...delta }
 
 		if (shallowEqual(prevState, nextState)) {
 			return

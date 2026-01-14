@@ -8,10 +8,13 @@ import {
 } from 'react'
 
 import { ModelBase } from './ModelBase'
-import { EventSubscription, EventsScheme, StateSubscription } from './common-types'
-import { computeDeps } from './utils'
+import { EventSubscription, EventsScheme, StatePlaceholder, StateSubscription } from './common-types'
+import { computeDeps, isEqual } from './utils'
 
-export class Model<E extends EventsScheme = {}> extends ModelBase<E> {
+export class Model<
+	TState extends StatePlaceholder,
+	TEvents extends EventsScheme = EventsScheme
+> extends ModelBase<TState, TEvents> {
 	useState = <K extends keyof typeof this['state']>(key: K): [typeof this['state'][K], (v: typeof this['state'][K]) => void] => {
 		const setValue = useCallback((v: typeof this['state'][K]) => {
 			const previousValue = (this.state as typeof this['state'])[key]
@@ -71,13 +74,13 @@ export class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 		const updateValue = useCallback<StateSubscription<this["state"]>>((next, prev) => {
 			const { result, deps } = computeDeps(latestMapperRef.current, next, prev)
 
-			setVal(result)
+			setVal(current => isEqual(current, result) ? current : result)
 			reSubscribe(deps)
 		}, [])
 
 		useEffect(() => {
 			if (initialValue !== derivedValue) {
-				setVal(derivedValue)
+				setVal(current => isEqual(current, derivedValue) ? current : derivedValue)
 			}
 
 			reSubscribe(stateDeps)
@@ -90,13 +93,16 @@ export class Model<E extends EventsScheme = {}> extends ModelBase<E> {
 		return val
 	}
 
-	useEvent = <K extends keyof E>(ns: K, cb?: EventSubscription<E, K>) => {
+	useEvent = <K extends keyof TEvents>(ns: K, cb?: EventSubscription<TEvents, K>) => {
 		useEffect(() => {
 			if (!cb) return
 
 			return this.onEvent(ns, cb)
 		}, [ns, cb])
 
-		return (data?: E[K] extends undefined ? never : E[K]) => this.dispatch(ns, data)
+		return useCallback(
+			(data?: TEvents[K] extends undefined ? never : TEvents[K]) => this.dispatch(ns, data),
+			[ns]
+		)
 	}
 }

@@ -4,30 +4,35 @@ import React, {
 	useContext,
 	useEffect,
 	useMemo,
+	useRef,
 } from 'react'
-
+import { ExtractState, ModelLike } from './common-types'
 import { Model } from './ModelWithHooks'
-import { ModelBase } from './ModelBase'
-import { EventsScheme } from './common-types'
 
-type Ctor<TEvents extends {}, TModel extends ModelBase<TEvents>> = new (...args: any[]) => TModel
-
-export type ModelProviderProps<TEvents extends EventsScheme, TModel extends ModelBase<TEvents>> = Omit<ProviderProps<TModel>, 'value'> & {
+export type ModelProviderProps<
+	TInit extends unknown[],
+	TModel extends ModelLike
+> = Omit<ProviderProps<TModel>, 'value'> & {
 	value?: TModel
-	state?: TModel['state']
-	onChange?: (state: TModel['state'], prevState: TModel['state']) => void
+	init?: TInit
+	state?: ExtractState<TModel>
+	onChange?: (state: ExtractState<TModel>, prevState: ExtractState<TModel>) => void
 }
 
-export function createModel<TEvents extends {} = {}, TModel extends Model<TEvents> = Model<TEvents>>(CName: Ctor<TEvents, TModel>) {
+export function createModel<
+	TInit extends unknown[],
+	TModel extends ModelLike
+>(CName: new (...init: TInit) => TModel) {
 	const Ctx = createContext<TModel | null>(null)
 
 	function Provider({
 		value,
+		init,
 		state,
 		onChange,
 		...props
-	}: ModelProviderProps<TEvents, TModel>) {
-		const model = useMemo(() => value || new CName(), [])
+	}: ModelProviderProps<TInit, TModel>) {
+		const model = useMemo(() => value || new CName(...init as TInit), [value])
 
 		useEffect(() => {
 			if (state !== undefined && state !== model.state) {
@@ -35,17 +40,16 @@ export function createModel<TEvents extends {} = {}, TModel extends Model<TEvent
 			}
 		}, [state, model])
 
+		const onChangeRef = useRef(onChange)
+		onChangeRef.current = onChange
+
 		useEffect(() => {
-			let listener = () => { }
+			const listener = model.onStateChange((current, prev) => {
+				onChangeRef.current?.(current, prev)
+			})
 
-			if (onChange) {
-				listener = model.onStateChange(onChange)
-			}
-
-			return () => {
-				listener()
-			}
-		}, [onChange])
+			return listener
+		}, [model])
 
 		return <Ctx.Provider {...props} value={model} />
 	}
@@ -60,8 +64,8 @@ export function createModel<TEvents extends {} = {}, TModel extends Model<TEvent
 		return model
 	}
 
-	function useModelInstance(state?: TModel["state"]) {
-		return useMemo(() => new CName(state), [])
+	function useModelInstance(...init: TInit) {
+		return useMemo(() => new CName(...init), [])
 	}
 
 	return {

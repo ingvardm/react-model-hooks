@@ -3,27 +3,40 @@ import { StatePlaceholder } from "./common-types"
 export function shallowEqual<S extends Record<string, unknown>>(a: S, b: S) {
 	if (a === b) return true
 
-	const keys = new Set([...Object.keys(a), ...Object.keys(b)])
+	const aKeys = Object.keys(a)
+	const bKeys = Object.keys(b)
 
-	for (const key of keys) {
-		const av = a[key]
-		const bv = b[key]
+	if (aKeys.length !== bKeys.length) return false
 
-		if (av === bv) {
-			continue
-		}
-
-		// Handle NaN
-		if (av !== av && bv !== bv) {
-			continue
-		}
-
-		if (!Object.is(av, bv)) {
+	for (const key of aKeys) {
+		if (!Object.is(a[key], b[key])) {
 			return false
 		}
 	}
 
 	return true
+}
+
+export function isEqual<T>(a: T, b: T): boolean {
+	if (Object.is(a, b)) return true
+
+	if (
+		typeof a === 'object' && a !== null &&
+		typeof b === 'object' && b !== null &&
+		!Array.isArray(a) && !Array.isArray(b)
+	) {
+		return shallowEqual(a as Record<string, unknown>, b as Record<string, unknown>)
+	}
+
+	if (Array.isArray(a) && Array.isArray(b)) {
+		if (a.length !== b.length) return false
+		for (let i = 0; i < a.length; i++) {
+			if (!Object.is(a[i], b[i])) return false
+		}
+		return true
+	}
+
+	return false
 }
 
 export function computeDeps<T, S extends StatePlaceholder>(
@@ -33,13 +46,19 @@ export function computeDeps<T, S extends StatePlaceholder>(
 ) {
 	const deps = new Set<keyof S>()
 
-	const result = func(new Proxy(currentState, {
+	const trackingHandler: ProxyHandler<S> = {
 		get: (t, k) => {
-			deps.add(k)
-
-			return t[k]
+			if (typeof k === 'string') {
+				deps.add(k)
+			}
+			return t[k as keyof S]
 		},
-	}), prevState)
+	}
+
+	const result = func(
+		new Proxy(currentState, trackingHandler),
+		new Proxy(prevState, trackingHandler)
+	)
 
 	return {
 		result: result as T,
