@@ -51,7 +51,10 @@ export class Model<
 		const latestMapperRef = useRef(mapper)
 		latestMapperRef.current = mapper
 
-		const { result: derivedValue, deps: stateDeps } = useMemo(() => {
+		const {
+			result: derivedValue,
+			deps: stateDeps,
+		} = useMemo(() => {
 			return computeDeps(
 				latestMapperRef.current,
 				this.state,
@@ -59,7 +62,7 @@ export class Model<
 			)
 		}, mapperDeps)
 
-		const initialValue = useRef(derivedValue).current
+		const previousValue = useRef(derivedValue)
 
 		const [val, setVal] = useState<T>(derivedValue)
 
@@ -79,16 +82,24 @@ export class Model<
 		}, [])
 
 		useEffect(() => {
-			if (initialValue !== derivedValue) {
+			if (previousValue.current !== derivedValue) {
 				setVal(current => isEqual(current, derivedValue) ? current : derivedValue)
 			}
 
-			reSubscribe(stateDeps)
+			const { result, deps } = computeDeps(latestMapperRef.current, this.state, this.state)
+
+			setVal(current => isEqual(current, result) ? current : result)
+
+			reSubscribe(deps)
 
 			return () => {
 				unsubscribe.current()
 			}
 		}, [derivedValue, stateDeps])
+
+		useEffect(() => {
+			previousValue.current = derivedValue
+		}, [derivedValue])
 
 		return val
 	}

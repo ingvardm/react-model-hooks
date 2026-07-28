@@ -7,10 +7,9 @@ import React, {
 	useRef,
 } from 'react'
 import { ExtractState, ModelLike } from './common-types'
-import { Model } from './ModelWithHooks'
 
 export type ModelProviderProps<
-	TInit extends unknown[],
+	TInit extends any[],
 	TModel extends ModelLike
 > = Omit<ProviderProps<TModel>, 'value'> & {
 	value?: TModel
@@ -32,7 +31,7 @@ export function createModel<
 		onChange,
 		...props
 	}: ModelProviderProps<TInit, TModel>) {
-		const model = useMemo(() => value || new CName(...init as TInit), [value])
+		const model = useMemo(() => value || new CName(...(init || []) as TInit), [value])
 
 		useEffect(() => {
 			if (state !== undefined && state !== model.state) {
@@ -58,7 +57,7 @@ export function createModel<
 		const model = useContext(Ctx)
 
 		if (!model) {
-			throw new Error(`[useModel]: Could not find model\n${JSON.stringify(Ctx, null, 2)}`)
+			throw new Error('[useModel]: No model found in context. Wrap your component tree in the corresponding Provider (or pass a `value`).')
 		}
 
 		return model
